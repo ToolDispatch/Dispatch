@@ -220,6 +220,12 @@ The Claude Code plugin ecosystem is genuinely underutilized. Most developers ins
 
 Built because I needed it. Shared because you probably do too.
 
+This is a vibe coding project — I built Dispatch for myself over a weekend using Claude Code, then cleaned it up enough to share. If you're curious what else gets built this way, check out [Vib8](https://www.vib8ai.com) — an AI-powered prospecting engine built the same way.
+
 ---
 
-*Star it if it saves you time. That's the only ask.*
+## Support
+
+If Dispatch saved you some time and made your Claude Code experience better, you can [buy me a coffee](https://github.com/sponsors/VisionAIrySE). That's it. No pressure, no tiers, no newsletter.
+
+Star it if it helps. Share it if someone else would use it.
