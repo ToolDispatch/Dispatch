@@ -16,6 +16,11 @@ SKILL_ROUTER_DIR="${HOME}/.claude/skill-router"
 STATE_FILE="$SKILL_ROUTER_DIR/state.json"
 CONFIG_FILE="$SKILL_ROUTER_DIR/config.json"
 
+# Ensure tmpfiles are always cleaned up on exit
+CLASSIFY_TMP=""
+RANK_TMP=""
+trap 'rm -f "${CLASSIFY_TMP:-}" "${RANK_TMP:-}" 2>/dev/null' EXIT
+
 # ── Load hosted config (token + endpoint) ─────────────────────────────────
 DISPATCH_TOKEN=$(python3 -c "
 import json
@@ -318,8 +323,18 @@ p(f"\n [Enter] or wait 3s to proceed")
 p(bar)
 PYEOF
 
-# Wait for user confirmation (3s max — hook has 10s total timeout)
-read -r -t 3 < /dev/tty 2>/dev/null || true
+# Only pause when there are recommendations — no point waiting for a no-results notice
+HAS_RECS=$(python3 -c "
+import json, sys
+try:
+    r = json.loads(sys.argv[1])
+    print('yes' if r.get('installed') or r.get('suggested') else 'no')
+except:
+    print('no')
+" "$RECOMMENDATIONS" 2>/dev/null || echo "no")
+if [ "$HAS_RECS" = "yes" ]; then
+    read -r -t 3 < /dev/tty 2>/dev/null || true
+fi
 
 # ── Update state ───────────────────────────────────────────────────────────
 python3 -c "
