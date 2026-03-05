@@ -12,7 +12,7 @@
 set -uo pipefail
 
 HOOK_INPUT=$(cat)
-SKILL_ROUTER_DIR="/home/visionairy/.claude/skill-router"
+SKILL_ROUTER_DIR="${HOME}/.claude/skill-router"
 STATE_FILE="$SKILL_ROUTER_DIR/state.json"
 CONFIG_FILE="$SKILL_ROUTER_DIR/config.json"
 
@@ -40,7 +40,7 @@ if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
     ANTHROPIC_API_KEY=$(python3 -c "
 import json
 try:
-    d = json.load(open('/home/visionairy/.mcp.json'))
+    import os; d = json.load(open(os.path.expanduser('~/.mcp.json')))
     print(d['mcpServers']['xpansion']['env']['ANTHROPIC_API_KEY'])
 except:
     print('')
@@ -66,7 +66,7 @@ d = json.loads(sys.stdin.read())
 print(d.get('cwd', '$PWD'))
 " <<< "$HOOK_INPUT" 2>/dev/null || echo "$PWD")
 
-# ── Load last task type ────────────────────────────────────────────────────
+# ── Load last task type + limit cooldown ──────────────────────────────────
 LAST_TASK_TYPE=$(python3 -c "
 import json
 try:
@@ -76,6 +76,15 @@ try:
 except:
     print('')
 " 2>/dev/null || echo "")
+
+LIMIT_COOLDOWN=$(python3 -c "
+import json
+try:
+    d = json.load(open('$STATE_FILE'))
+    print(int(d.get('limit_cooldown', 0)))
+except:
+    print(0)
+" 2>/dev/null || echo "0")
 
 # ── Stage 1: Classify ──────────────────────────────────────────────────────
 if [ -n "$DISPATCH_TOKEN" ]; then
@@ -98,22 +107,44 @@ if transcript_path and os.path.exists(transcript_path):
                         pass
     except Exception:
         pass
+transcript = transcript[-20:]  # Keep last 20 entries to limit payload size
 print(json.dumps({'transcript': transcript, 'cwd': cwd, 'last_task_type': last_task_type}))
 " "$TRANSCRIPT_PATH" "$CWD" "$LAST_TASK_TYPE" 2>/dev/null || echo '{}')
 
+    CLASSIFY_TMP=$(mktemp)
+    echo "$CLASSIFY_PAYLOAD" > "$CLASSIFY_TMP"
     HTTP_RESPONSE=$(curl -s -w "\n%{http_code}" \
         -X POST "$DISPATCH_ENDPOINT/classify" \
         -H "Authorization: Bearer $DISPATCH_TOKEN" \
         -H "Content-Type: application/json" \
-        -d "$CLASSIFY_PAYLOAD" \
+        --data @"$CLASSIFY_TMP" \
         --max-time 5 2>/dev/null || echo '{"shift":false}
 200')
+    rm -f "$CLASSIFY_TMP"
 
     HTTP_BODY=$(echo "$HTTP_RESPONSE" | head -n -1)
     HTTP_CODE=$(echo "$HTTP_RESPONSE" | tail -n 1)
 
     # Handle limit reached (402)
     if [ "$HTTP_CODE" = "402" ]; then
+        # Suppress notice for 5 triggers after first display
+        if [ "$LIMIT_COOLDOWN" -gt 0 ]; then
+            python3 -c "
+import json, sys
+from datetime import datetime
+state_file, task_type = sys.argv[1], sys.argv[2]
+try:
+    d = json.load(open(state_file))
+except Exception:
+    d = {}
+d['limit_cooldown'] = max(0, int(d.get('limit_cooldown', 1)) - 1)
+d['last_task_type'] = task_type
+d['last_updated'] = datetime.now().isoformat()
+with open(state_file, 'w') as f:
+    json.dump(d, f)
+" "$STATE_FILE" "${LAST_TASK_TYPE:-}" 2>/dev/null || true
+            exit 0
+        fi
         UPGRADE_URL=$(python3 -c "
 import json, sys
 try:
@@ -123,13 +154,28 @@ except:
     print('https://dispatch.visionairy.biz/pro')
 " "$HTTP_BODY" 2>/dev/null || echo "https://dispatch.visionairy.biz/pro")
         W=52
-        echo ""
-        printf '━%.0s' $(seq 1 $W); echo
-        echo " 🔵 Dispatch  →  Task shift detected"
-        printf '━%.0s' $(seq 1 $W); echo
-        echo " You've used your 5 free detections today."
-        echo " Upgrade for unlimited — \$6/month → $UPGRADE_URL"
-        printf '━%.0s' $(seq 1 $W); echo
+        echo "" >&2
+        printf '━%.0s' $(seq 1 $W) >&2; echo >&2
+        echo " 🔵 Dispatch  →  Task shift detected" >&2
+        printf '━%.0s' $(seq 1 $W) >&2; echo >&2
+        echo " You've used your 5 free detections today." >&2
+        echo " Upgrade for unlimited — \$6/month → $UPGRADE_URL" >&2
+        printf '━%.0s' $(seq 1 $W) >&2; echo >&2
+        # Set cooldown: suppress for next 5 triggers
+        python3 -c "
+import json, sys
+from datetime import datetime
+state_file, task_type = sys.argv[1], sys.argv[2]
+try:
+    d = json.load(open(state_file))
+except Exception:
+    d = {}
+d['limit_cooldown'] = 5
+d['last_task_type'] = task_type
+d['last_updated'] = datetime.now().isoformat()
+with open(state_file, 'w') as f:
+    json.dump(d, f)
+" "$STATE_FILE" "${LAST_TASK_TYPE:-}" 2>/dev/null || true
         exit 0
     fi
 
@@ -168,12 +214,30 @@ CONF_OK=$(python3 -c "print('yes' if float('$CONFIDENCE') >= 0.7 else 'no')" 2>/
 # ── Stage 2: Evaluate + render UI ─────────────────────────────────────────
 if [ -n "$DISPATCH_TOKEN" ]; then
     # ── Hosted rank ────────────────────────────────────────────────────────
+    RANK_TMP=$(mktemp)
+    python3 -c "
+import json, sys
+sys.path.insert(0, sys.argv[2])
+try:
+    from evaluator import scan_installed_plugins, get_installed_skills, PLUGINS_DIR
+    installed_plugins = scan_installed_plugins(PLUGINS_DIR)
+    installed_skills = get_installed_skills()
+except Exception:
+    installed_plugins = []
+    installed_skills = []
+print(json.dumps({
+    'task_type': sys.argv[1],
+    'installed_plugins': installed_plugins,
+    'installed_skills': installed_skills
+}))
+" "$TASK_TYPE" "$SKILL_ROUTER_DIR" > "$RANK_TMP" 2>/dev/null || python3 -c "import json,sys; print(json.dumps({'task_type':sys.argv[1],'installed_plugins':[],'installed_skills':[]}))" "$TASK_TYPE" > "$RANK_TMP"
     RANK_RESPONSE=$(curl -s \
         -X POST "$DISPATCH_ENDPOINT/rank" \
         -H "Authorization: Bearer $DISPATCH_TOKEN" \
         -H "Content-Type: application/json" \
-        -d "{\"task_type\": \"$TASK_TYPE\"}" \
+        --data @"$RANK_TMP" \
         --max-time 5 2>/dev/null || echo '{"installed":[],"suggested":[]}')
+    rm -f "$RANK_TMP"
     RECOMMENDATIONS="$RANK_RESPONSE"
 else
     # ── BYOK rank ──────────────────────────────────────────────────────────
@@ -190,6 +254,9 @@ fi
 python3 - "$TASK_TYPE" "$RECOMMENDATIONS" <<'PYEOF'
 import json, sys
 
+def p(msg=""):
+    print(msg, file=sys.stderr, flush=True)
+
 task_type = sys.argv[1]
 try:
     recs = json.loads(sys.argv[2])
@@ -200,32 +267,40 @@ installed = recs.get("installed", [])
 suggested = recs.get("suggested", [])
 
 if not installed and not suggested:
+    W2 = 52
+    print(f"\n{'━' * W2}", file=sys.stderr, flush=True)
+    print(f" 🔵 Dispatch  →  {task_type.replace('-', ' ').title()} task detected", file=sys.stderr, flush=True)
+    print(f" No skills found for this task type.", file=sys.stderr, flush=True)
+    print(f"{'━' * W2}", file=sys.stderr, flush=True)
     sys.exit(0)
 
 W = 52
 bar = "━" * W
-print(f"\n{bar}", flush=True)
-print(f" 🔵 Dispatch  →  {task_type.replace('-', ' ').title()} task detected", flush=True)
-print(bar, flush=True)
+p(f"\n{bar}")
+p(f" 🔵 Dispatch  →  {task_type.replace('-', ' ').title()} task detected")
+p(bar)
 
 if installed:
-    print(" RECOMMENDED (installed):", flush=True)
-    for p in installed:
-        print(f"   + {p['name']}", flush=True)
-        reason = p.get('reason', '')
+    p(" RECOMMENDED (installed):")
+    for plug in installed:
+        p(f"   + {plug['name']}")
+        reason = plug.get('reason', '')
         if reason:
-            print(f"     {reason}", flush=True)
+            p(f"     {reason}")
 
 if suggested:
-    print("\n SUGGESTED (not installed):", flush=True)
+    p("\n SUGGESTED (not installed):")
     for s in suggested:
-        print(f"   ↓ {s['name']}", flush=True)
+        p(f"   ↓ {s['name']}")
+        reason = s.get('reason', '')
+        if reason:
+            p(f"     {reason}")
         cmd = s.get('install_cmd', '')
         if cmd:
-            print(f"     → {cmd}", flush=True)
+            p(f"     → {cmd}")
 
-print(f"\n [Enter] or wait 3s to proceed", flush=True)
-print(bar, flush=True)
+p(f"\n [Enter] or wait 3s to proceed")
+p(bar)
 PYEOF
 
 # Wait for user confirmation (3s max — hook has 10s total timeout)
@@ -236,8 +311,14 @@ python3 -c "
 import json, sys
 from datetime import datetime
 state_file, task_type = sys.argv[1], sys.argv[2]
+try:
+    d = json.load(open(state_file))
+except Exception:
+    d = {}
+d['last_task_type'] = task_type
+d['last_updated'] = datetime.now().isoformat()
 with open(state_file, 'w') as f:
-    json.dump({'last_task_type': task_type, 'last_updated': datetime.now().isoformat()}, f)
+    json.dump(d, f)
 " "$STATE_FILE" "$TASK_TYPE" 2>/dev/null || true
 
 exit 0

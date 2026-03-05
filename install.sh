@@ -76,6 +76,18 @@ with open(settings_path, "w") as f:
 print("Registered UserPromptSubmit hook in settings.json")
 PYEOF
 
+# ── Pre-warm npx cache (prevents first-run hook timeout) ───────────────────
+echo "Pre-warming skill registry cache..."
+python3 -c "
+import sys
+sys.path.insert(0, '$DISPATCH_DIR')
+try:
+    from evaluator import get_installed_skills
+    get_installed_skills()
+except Exception:
+    pass
+" 2>/dev/null || true
+
 # ── Auth / API key setup ───────────────────────────────────────────────────
 echo ""
 
@@ -98,7 +110,7 @@ elif [ -n "${ANTHROPIC_API_KEY:-}" ]; then
 else
     # No token, no API key — offer registration
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo " ⚡ Connect Dispatch to the hosted endpoint (free)"
+    echo " 🔵 Connect Dispatch to the hosted endpoint (free)"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     echo " 1. Open this URL in your browser:"

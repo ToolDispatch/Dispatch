@@ -3,9 +3,28 @@ import os
 import re
 import subprocess
 import glob
+import time
 import anthropic
 
 PLUGINS_DIR = os.path.expanduser("~/.claude/plugins/marketplaces")
+CACHE_FILE = os.path.expanduser("~/.claude/skill-router/npx_cache.json")
+CACHE_TTL = 3600  # 1 hour
+
+
+def _load_cache() -> dict:
+    try:
+        with open(CACHE_FILE) as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _save_cache(cache: dict):
+    try:
+        with open(CACHE_FILE, "w") as f:
+            json.dump(cache, f)
+    except Exception:
+        pass
 
 RANK_SYSTEM_PROMPT = """You are a plugin recommendation engine for Claude Code.
 Given a detected task type and lists of available plugins/skills,
@@ -46,14 +65,18 @@ def scan_installed_plugins(plugins_dir: str) -> list:
 
 
 def get_installed_skills() -> list:
-    """Get list of installed agent skills via npx skills list."""
+    """Get list of installed agent skills via npx skills list. Cached for 1 hour."""
+    cache = _load_cache()
+    entry = cache.get("installed_skills", {})
+    if entry and (time.time() - entry.get("fetched_at", 0)) < CACHE_TTL:
+        return entry["data"]
     try:
         result = subprocess.run(
             ["npx", "--yes", "skills", "list", "-g"],
-            capture_output=True, text=True, timeout=10, check=False
+            capture_output=True, text=True, timeout=6, check=False
         )
         if result.returncode != 0:
-            return []
+            return entry.get("data", [])
         lines = result.stdout.strip().split("\n")
         cleaned = []
         for line in lines:
@@ -61,9 +84,11 @@ def get_installed_skills() -> list:
             # Keep only lines that look like skill identifiers (hyphenated, no spaces)
             if stripped and not stripped.startswith("No ") and " " not in stripped and "-" in stripped:
                 cleaned.append(stripped)
+        cache["installed_skills"] = {"data": cleaned, "fetched_at": time.time()}
+        _save_cache(cache)
         return cleaned
     except Exception:
-        return []
+        return entry.get("data", [])
 
 
 def strip_ansi(text: str) -> str:
@@ -72,10 +97,14 @@ def strip_ansi(text: str) -> str:
 
 
 def search_registry(task_type: str, limit: int = 5) -> list:
-    """Search skills.sh registry for task-type matches."""
+    """Search skills.sh registry for task-type matches. Cached per primary term for 1 hour."""
+    primary = task_type.split("-")[0]
+    cache = _load_cache()
+    registry = cache.get("registry", {})
+    entry = registry.get(primary, {})
+    if entry and (time.time() - entry.get("fetched_at", 0)) < CACHE_TTL:
+        return entry["data"]
     try:
-        # Use only the primary term for registry search (e.g. "docker" from "docker-aws-github-actions")
-        primary = task_type.split("-")[0]
         result = subprocess.run(
             ["npx", "--yes", "skills", "find", primary],
             capture_output=True, text=True, timeout=6, check=False
@@ -91,9 +120,14 @@ def search_registry(task_type: str, limit: int = 5) -> list:
                     skill_id = parts[0]
                     if "/" in skill_id and "@" in skill_id:
                         skills.append(skill_id)
-        return skills[:limit]
+        skills = skills[:limit]
+        if "registry" not in cache:
+            cache["registry"] = {}
+        cache["registry"][primary] = {"data": skills, "fetched_at": time.time()}
+        _save_cache(cache)
+        return skills
     except Exception:
-        return []
+        return entry.get("data", [])
 
 
 def rank_recommendations(
