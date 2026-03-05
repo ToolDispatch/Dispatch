@@ -184,10 +184,12 @@ Which are most relevant for a {task_type} task?"""
         return {"installed": [], "suggested": []}
 
 
-def build_recommendation_list(task_type: str) -> dict:
+def build_recommendation_list(task_type: str, installed_plugins: list = None, installed_skills: list = None) -> dict:
     """Full evaluation pipeline: scan installed -> search registry -> rank."""
-    installed_plugins = scan_installed_plugins(PLUGINS_DIR)
-    installed_skills = get_installed_skills()
+    if installed_plugins is None:
+        installed_plugins = scan_installed_plugins(PLUGINS_DIR)
+    if installed_skills is None:
+        installed_skills = get_installed_skills()
     registry_results = search_registry(task_type)
     result = rank_recommendations(
         task_type=task_type,

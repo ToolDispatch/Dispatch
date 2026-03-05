@@ -34,7 +34,6 @@ cp evaluator.py "$DISPATCH_DIR/"
 
 # ── Seed state files ───────────────────────────────────────────────────────
 [ -f "$DISPATCH_DIR/state.json" ] || echo '{"last_task_type":null,"last_updated":null}' > "$DISPATCH_DIR/state.json"
-[ -f "$DISPATCH_DIR/registry.json" ] || echo '{"last_built":null,"plugins":{}}' > "$DISPATCH_DIR/registry.json"
 
 # ── Install hook script ────────────────────────────────────────────────────
 sed "s|/home/visionairy|$HOME|g" dispatch.sh > "$HOOKS_DIR/skill-router.sh"
@@ -51,8 +50,11 @@ import json, sys
 settings_path = "$SETTINGS"
 hook_cmd = "bash $HOOKS_DIR/skill-router.sh"
 
-with open(settings_path) as f:
-    settings = json.load(f)
+try:
+    with open(settings_path) as f:
+        settings = json.load(f)
+except (json.JSONDecodeError, IOError):
+    settings = {}
 
 hooks = settings.setdefault("hooks", {})
 

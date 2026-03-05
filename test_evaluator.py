@@ -19,6 +19,7 @@ class TestScanInstalledPlugins(unittest.TestCase):
         assert len(result) > 0
         assert all("name" in p for p in result)
         assert all("description" in p for p in result)
+        assert all("marketplace" in p for p in result)
 
     def test_includes_known_plugin(self):
         result = scan_installed_plugins(PLUGINS_DIR)
@@ -102,6 +103,30 @@ class TestBuildRecommendationList(unittest.TestCase):
         assert isinstance(result, dict)
         assert "installed" in result
         assert "suggested" in result
+
+    @patch('evaluator.search_registry', return_value=[])
+    @patch('evaluator.get_installed_skills', return_value=[])
+    @patch('evaluator.rank_recommendations')
+    def test_enriches_installed_items_with_marketplace(self, mock_rank, _skills, _registry):
+        mock_rank.return_value = {
+            "installed": [{"name": "my-plugin", "reason": "relevant"}],
+            "suggested": []
+        }
+        fake_plugins = [{"name": "my-plugin", "description": "desc", "marketplace": "skillsmarket", "source": "installed"}]
+        result = build_recommendation_list("flutter", installed_plugins=fake_plugins)
+        assert result["installed"][0].get("marketplace") == "skillsmarket"
+
+    @patch('evaluator.search_registry', return_value=[])
+    @patch('evaluator.get_installed_skills', return_value=[])
+    @patch('evaluator.rank_recommendations')
+    def test_does_not_add_marketplace_when_absent(self, mock_rank, _skills, _registry):
+        mock_rank.return_value = {
+            "installed": [{"name": "my-plugin", "reason": "relevant"}],
+            "suggested": []
+        }
+        fake_plugins = [{"name": "my-plugin", "description": "desc", "marketplace": "", "source": "installed"}]
+        result = build_recommendation_list("flutter", installed_plugins=fake_plugins)
+        assert "marketplace" not in result["installed"][0]
 
 
 class TestRankHandlesEmptyContentList(unittest.TestCase):

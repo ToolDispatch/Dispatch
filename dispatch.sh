@@ -91,6 +91,15 @@ except:
     print(0)
 " 2>/dev/null || echo "0")
 
+AUTH_COOLDOWN=$(python3 -c "
+import json
+try:
+    d = json.load(open('$STATE_FILE'))
+    print(int(d.get('auth_invalid_cooldown', 0)))
+except:
+    print(0)
+" 2>/dev/null || echo "0")
+
 # ── Stage 1: Classify ──────────────────────────────────────────────────────
 if [ -n "$DISPATCH_TOKEN" ]; then
     # ── Hosted mode ──────────────────────────────────────────────────────────
@@ -181,6 +190,46 @@ d['last_updated'] = datetime.now().isoformat()
 with open(state_file, 'w') as f:
     json.dump(d, f)
 " "$STATE_FILE" "${LAST_TASK_TYPE:-}" 2>/dev/null || true
+        exit 0
+    fi
+
+    # Handle invalid/expired token (401)
+    if [ "$HTTP_CODE" = "401" ]; then
+        if [ "$AUTH_COOLDOWN" -gt 0 ]; then
+            python3 -c "
+import json, sys
+from datetime import datetime
+state_file = sys.argv[1]
+try:
+    d = json.load(open(state_file))
+except Exception:
+    d = {}
+d['auth_invalid_cooldown'] = max(0, int(d.get('auth_invalid_cooldown', 1)) - 1)
+d['last_updated'] = datetime.now().isoformat()
+with open(state_file, 'w') as f:
+    json.dump(d, f)
+" "$STATE_FILE" 2>/dev/null || true
+            exit 0
+        fi
+        W=52
+        echo "" >&2
+        printf '━%.0s' $(seq 1 $W) >&2; echo >&2
+        echo " 🔵 Dispatch  →  Token invalid or expired" >&2
+        echo " Re-authenticate: $DISPATCH_ENDPOINT/token-lookup" >&2
+        printf '━%.0s' $(seq 1 $W) >&2; echo >&2
+        python3 -c "
+import json, sys
+from datetime import datetime
+state_file = sys.argv[1]
+try:
+    d = json.load(open(state_file))
+except Exception:
+    d = {}
+d['auth_invalid_cooldown'] = 20
+d['last_updated'] = datetime.now().isoformat()
+with open(state_file, 'w') as f:
+    json.dump(d, f)
+" "$STATE_FILE" 2>/dev/null || true
         exit 0
     fi
 
