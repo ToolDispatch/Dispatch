@@ -12,7 +12,7 @@ The hosted version gets smarter every day. As developers use Dispatch across tho
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- ⚡ Dispatch  →  Flutter task detected
+ 🔵 Dispatch  →  Flutter task detected
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  RECOMMENDED (installed):
    + flutter-mobile-app-dev
@@ -157,7 +157,7 @@ npx skills add supabase/agent-skills@supabase-postgres-best-practices -y -g
 
 Haiku receives your last 3 messages and current working directory. Returns `{"shift": bool, "task_type": str, "confidence": float}`. If no shift or confidence below 0.7, exits silently — you never see it.
 
-**Smart skipping** — messages under 6 words and follow-up questions skip classification entirely.
+**Smart skipping** — messages under 6 words skip classification entirely.
 
 **Stage 2 — Evaluation (on confirmed shift only)**
 
@@ -218,11 +218,11 @@ Pull requests welcome. The classifier taxonomy and evaluator ranking logic are t
 
 ## Roadmap
 
-- [ ] Caching layer for plugin registry (reduce npx latency)
-- [ ] `/dispatch status` command to inspect current state
-- [ ] Expand task type taxonomy (React, Python, Docker, AWS...)
-- [ ] skills.sh distribution
+- [x] Caching layer for plugin registry (reduce npx latency)
 - [x] Hosted endpoint — no API key required (live at dispatch.visionairy.biz)
+- [x] Open-ended task type taxonomy — Haiku generates specific labels, not a fixed list
+- [ ] `/dispatch status` command to inspect current state
+- [ ] skills.sh distribution
 
 ---
 

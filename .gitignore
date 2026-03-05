@@ -1,5 +1,9 @@
 __pycache__/
 *.pyc
 .env
+.mcp.json
 state.json
 registry.json
+npx_cache.json
+*Zone.Identifier
+claude.md
