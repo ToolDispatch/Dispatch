@@ -12,7 +12,11 @@ determine:
 Respond with ONLY valid JSON in this exact format:
 {"shift": true/false, "task_type": "<type>", "confidence": 0.0-1.0}
 
-Task types: flutter, firebase, supabase, n8n, git, debugging, planning, testing, api, frontend, general
+For task_type, return the most specific, descriptive label you can — it will be used to search
+a skills registry, so precision matters. Use the technology, framework, or domain name directly.
+Examples: flutter, react, nextjs, python, docker, aws, langchain, supabase, prisma, graphql,
+postgres, redis, stripe, github-actions, debugging, testing, planning, security, devops, or
+any other relevant technology. Use lowercase-hyphenated format. Prefer specific over generic.
 
 A "shift" means the developer is starting something clearly different from their last task.
 Continuing, refining, or asking follow-up questions about the same task is NOT a shift.

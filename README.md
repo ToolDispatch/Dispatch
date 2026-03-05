@@ -149,9 +149,11 @@ Scans `~/.claude/plugins/marketplaces/` for installed plugins, runs `npx skills 
 
 ## Supported task types
 
-`flutter` · `firebase` · `supabase` · `n8n` · `git` · `debugging` · `planning` · `testing` · `api` · `frontend` · `general`
+Any. Dispatch doesn't use a fixed list — it generates the most specific label it can from your conversation and uses that to search the live skills registry. If a skill exists for what you're doing, Dispatch will find it.
 
-More coming. Open an Issue to request one.
+Examples of what it detects: `flutter` · `react` · `nextjs` · `python` · `docker` · `aws` · `langchain` · `supabase` · `firebase` · `prisma` · `graphql` · `postgres` · `redis` · `stripe` · `github-actions` · `n8n` · `debugging` · `testing` · `devops` · `security` · and anything else in the registry.
+
+As new skills get published to [skills.sh](https://skills.sh), Dispatch picks them up automatically — no updates required.
 
 ---
 
@@ -220,7 +222,7 @@ The Claude Code plugin ecosystem is genuinely underutilized. Most developers ins
 
 Built because I needed it. Shared because you probably do too.
 
-This is a vibe coding project — I built Dispatch for myself over a weekend using Claude Code, then cleaned it up enough to share. If you're curious what else gets built this way, check out [Vib8](https://www.vib8ai.com) — an AI-powered prospecting engine built the same way.
+This is a vibe coding project — I built Dispatch for myself over a weekend using Claude Code, then cleaned it up enough to share. If you're getting serious about AI tooling, check out [Vib8](https://www.vib8ai.com) — a prompt engineering and optimization platform for 100+ AI tools that pairs well with what Dispatch does inside Claude Code.
 
 ---
 
