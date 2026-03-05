@@ -231,14 +231,27 @@ print(json.dumps({
     'installed_skills': installed_skills
 }))
 " "$TASK_TYPE" "$SKILL_ROUTER_DIR" > "$RANK_TMP" 2>/dev/null || python3 -c "import json,sys; print(json.dumps({'task_type':sys.argv[1],'installed_plugins':[],'installed_skills':[]}))" "$TASK_TYPE" > "$RANK_TMP"
-    RANK_RESPONSE=$(curl -s \
+    RANK_HTTP=$(curl -s -w "\n%{http_code}" \
         -X POST "$DISPATCH_ENDPOINT/rank" \
         -H "Authorization: Bearer $DISPATCH_TOKEN" \
         -H "Content-Type: application/json" \
         --data @"$RANK_TMP" \
-        --max-time 5 2>/dev/null || echo '{"installed":[],"suggested":[]}')
+        --max-time 5 2>/dev/null || echo '{"installed":[],"suggested":[]}
+200')
     rm -f "$RANK_TMP"
-    RECOMMENDATIONS="$RANK_RESPONSE"
+    RANK_BODY=$(echo "$RANK_HTTP" | head -n -1)
+    RANK_CODE=$(echo "$RANK_HTTP" | tail -n 1)
+    if [ "$RANK_CODE" = "200" ]; then
+        RECOMMENDATIONS="$RANK_BODY"
+    else
+        # Server rank failed — fall back to local BYOK ranking
+        RECOMMENDATIONS=$(python3 -c "
+import sys, json
+sys.path.insert(0, '$SKILL_ROUTER_DIR')
+from evaluator import build_recommendation_list
+print(json.dumps(build_recommendation_list(sys.argv[1])))
+" "$TASK_TYPE" 2>/dev/null || echo '{"installed":[],"suggested":[]}')
+    fi
 else
     # ── BYOK rank ──────────────────────────────────────────────────────────
     RECOMMENDATIONS=$(python3 -c "
@@ -283,7 +296,9 @@ p(bar)
 if installed:
     p(" RECOMMENDED (installed):")
     for plug in installed:
-        p(f"   + {plug['name']}")
+        marketplace = plug.get('marketplace', '')
+        label = f"   + {plug['name']}  (via {marketplace})" if marketplace else f"   + {plug['name']}"
+        p(label)
         reason = plug.get('reason', '')
         if reason:
             p(f"     {reason}")

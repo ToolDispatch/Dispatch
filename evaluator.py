@@ -54,9 +54,17 @@ def scan_installed_plugins(plugins_dir: str) -> list:
                 name = data.get("name", "")
                 description = data.get("description", "")
                 if name:
+                    # Extract marketplace name from path: .../marketplaces/{marketplace}/plugins/...
+                    parts = path.replace("\\", "/").split("/")
+                    try:
+                        mp_idx = parts.index("marketplaces")
+                        marketplace = parts[mp_idx + 1]
+                    except (ValueError, IndexError):
+                        marketplace = ""
                     plugins.append({
                         "name": name,
                         "description": description[:200],
+                        "marketplace": marketplace,
                         "source": "installed"
                     })
         except Exception:
@@ -181,9 +189,16 @@ def build_recommendation_list(task_type: str) -> dict:
     installed_plugins = scan_installed_plugins(PLUGINS_DIR)
     installed_skills = get_installed_skills()
     registry_results = search_registry(task_type)
-    return rank_recommendations(
+    result = rank_recommendations(
         task_type=task_type,
         installed_plugins=installed_plugins,
         installed_skills=installed_skills,
         registry_results=registry_results
     )
+    # Enrich ranked installed items with marketplace info from the original scan
+    plugin_map = {p["name"]: p for p in installed_plugins}
+    for item in result.get("installed", []):
+        mp = plugin_map.get(item["name"], {}).get("marketplace", "")
+        if mp:
+            item["marketplace"] = mp
+    return result
