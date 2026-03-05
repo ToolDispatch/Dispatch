@@ -1,38 +1,30 @@
 ---
 name: Bug report
-about: Create a report to help us improve
-title: ''
-labels: ''
+about: Dispatch isn't firing, wrong recommendations, or errors
+title: "[Bug] "
+labels: bug
 assignees: ''
-
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+**What happened?**
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+**What did you expect?**
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+**Task type you were on:**
+<!-- flutter / firebase / supabase / n8n / git / debugging / planning / testing / api / frontend / general -->
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+**Steps to reproduce:**
+1.
+2.
+3.
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
+**Error output (if any):**
+```
+paste any error here
+```
 
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
-
-**Additional context**
-Add any other context about the problem here.
+**Environment:**
+- OS:
+- Claude Code version (`claude --version`):
+- Python version (`python3 --version`):
+- Plugins installed:
