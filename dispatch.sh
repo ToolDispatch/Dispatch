@@ -80,12 +80,12 @@ CONF_OK=$(python3 -c "print('yes' if float('$CONFIDENCE') >= 0.7 else 'no')" 2>/
 
 # ── Stage 2: Evaluate + render UI ─────────────────────────────────────────
 RECOMMENDATIONS=$(python3 -c "
-import sys
+import sys, json
 sys.path.insert(0, '$SKILL_ROUTER_DIR')
 from evaluator import build_recommendation_list
-import json
-print(json.dumps(build_recommendation_list('$TASK_TYPE')))
-" 2>/dev/null || echo '{"installed":[],"suggested":[]}')
+task_type = sys.argv[1]
+print(json.dumps(build_recommendation_list(task_type)))
+" "$TASK_TYPE" 2>/dev/null || echo '{"installed":[],"suggested":[]}')
 
 # Render and prompt
 python3 - "$TASK_TYPE" "$RECOMMENDATIONS" <<'PYEOF'
@@ -106,7 +106,7 @@ if not installed and not suggested:
 W = 52
 bar = "━" * W
 print(f"\n{bar}", flush=True)
-print(f" ⚡ Dispatch  →  {task_type.title()} task detected", flush=True)
+print(f" ⚡ Dispatch  →  {task_type.replace('-', ' ').title()} task detected", flush=True)
 print(bar, flush=True)
 
 if installed:
@@ -130,14 +130,15 @@ print(bar, flush=True)
 PYEOF
 
 # Wait for user confirmation (3s max — hook has 10s total timeout)
-read -r -t 3 < /dev/tty 2>/dev/null || sleep 3
+read -r -t 3 < /dev/tty 2>/dev/null || true
 
 # ── Update state ───────────────────────────────────────────────────────────
 python3 -c "
-import json
+import json, sys
 from datetime import datetime
-with open('$STATE_FILE', 'w') as f:
-    json.dump({'last_task_type': '$TASK_TYPE', 'last_updated': datetime.now().isoformat()}, f)
-" 2>/dev/null || true
+state_file, task_type = sys.argv[1], sys.argv[2]
+with open(state_file, 'w') as f:
+    json.dump({'last_task_type': task_type, 'last_updated': datetime.now().isoformat()}, f)
+" "$STATE_FILE" "$TASK_TYPE" 2>/dev/null || true
 
 exit 0
