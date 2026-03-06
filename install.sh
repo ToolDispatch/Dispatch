@@ -17,7 +17,7 @@ echo "Installing Dispatch..."
 # ── Check dependencies ─────────────────────────────────────────────────────
 if ! python3 -c "import anthropic" 2>/dev/null; then
     echo "Installing anthropic Python package..."
-    pip3 install anthropic --quiet
+    python3 -m pip install anthropic --quiet --user
 fi
 
 if ! command -v npx &>/dev/null; then
@@ -127,12 +127,12 @@ else
 
     if [ -n "$USER_TOKEN" ]; then
         python3 -c "
-import json
-config = {'endpoint': '$DISPATCH_ENDPOINT', 'token': '$USER_TOKEN'}
-with open('$CONFIG_FILE', 'w') as f:
+import json, sys
+config = {'endpoint': sys.argv[1], 'token': sys.argv[2]}
+with open(sys.argv[3], 'w') as f:
     json.dump(config, f, indent=2)
 print('Token saved.')
-" 2>/dev/null && echo "✓ Token saved to $CONFIG_FILE"
+" "$DISPATCH_ENDPOINT" "$USER_TOKEN" "$CONFIG_FILE" 2>/dev/null && echo "✓ Token saved to $CONFIG_FILE"
     else
         echo ""
         echo "  No token entered. Set ANTHROPIC_API_KEY to use BYOK mode, or"
