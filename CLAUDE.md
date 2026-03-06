@@ -115,6 +115,17 @@ install.sh handles this automatically for fresh installs.
 
 ---
 
+## CC Transcript Format — Critical
+
+CC transcript JSONL entries are `{"type":"user", "isMeta":bool, "message":{"role":"user","content":"..."}, ...}`.
+
+- `role` is nested inside `message`, NOT at top level — `entry.get("role")` always returns `None`
+- `isMeta=True` entries are CC system messages (loaded skill file text, tool responses) — exclude them
+- String content starting with `[{` is a serialized tool result — exclude it
+- `userType` is always `"external"` — cannot distinguish real user messages from tool results this way
+
+`extract_recent_messages` handles all three cases. Do not revert these filters.
+
 ## Known Issues / History
 
 - **2026-03-05:** Haiku markdown wrapping bug — fixed in classifier.py and evaluator.py
@@ -141,6 +152,8 @@ install.sh handles this automatically for fresh installs.
 - **2026-03-05:** admin set-plan silently succeeded on unknown username — now returns 404
 - **2026-03-05:** Flask session cookies lacked Secure/SameSite flags — SESSION_COOKIE_SECURE/HTTPONLY/SAMESITE=Lax
 - **2026-03-05:** gunicorn single sync worker — switched to gthread 2 workers × 4 threads (Procfile)
+- **2026-03-05:** `extract_recent_messages` read `entry['role']` — CC nests role at `entry['message']['role']` — Dispatch never fired (BUG-022) — fixed client + server, deployed
+- **2026-03-05:** `extract_recent_messages` included isMeta entries (skill text) and `[{` strings (tool results) as user messages — polluted Haiku context (BUG-023) — filtered out
 
 ---
 
