@@ -21,6 +21,9 @@ CLASSIFY_TMP=""
 RANK_TMP=""
 trap 'rm -f "${CLASSIFY_TMP:-}" "${RANK_TMP:-}" 2>/dev/null' EXIT
 
+# Brand icon: blue ◎ (U+25CE) via ANSI — radar sweep target in terminal
+DICON=$'\033[94m◎\033[0m'
+
 # ── Load hosted config (token + endpoint) ─────────────────────────────────
 DISPATCH_TOKEN=$(python3 -c "
 import json
@@ -170,7 +173,7 @@ except:
         W=52
         echo "" >&2
         printf '━%.0s' $(seq 1 $W) >&2; echo >&2
-        echo " 🎯 Dispatch  →  Task shift detected" >&2
+        echo " ${DICON} Dispatch  →  Task shift detected" >&2
         printf '━%.0s' $(seq 1 $W) >&2; echo >&2
         echo " You've used your 5 free detections today." >&2
         echo " Upgrade for unlimited — \$6/month → $UPGRADE_URL" >&2
@@ -214,7 +217,7 @@ with open(state_file, 'w') as f:
         W=52
         echo "" >&2
         printf '━%.0s' $(seq 1 $W) >&2; echo >&2
-        echo " 🎯 Dispatch  →  Token invalid or expired" >&2
+        echo " ${DICON} Dispatch  →  Token invalid or expired" >&2
         echo " Re-authenticate: $DISPATCH_ENDPOINT/token-lookup" >&2
         printf '━%.0s' $(seq 1 $W) >&2; echo >&2
         python3 -c "
@@ -336,7 +339,7 @@ suggested = recs.get("suggested", [])
 if not installed and not suggested:
     W2 = 52
     print(f"\n{'━' * W2}", file=sys.stderr, flush=True)
-    print(f" 🎯 Dispatch  →  {task_type.replace('-', ' ').title()} task detected", file=sys.stderr, flush=True)
+    print(f" \033[94m◎\033[0m Dispatch  →  {task_type.replace('-', ' ').title()} task detected", file=sys.stderr, flush=True)
     print(f" No skills found for this task type.", file=sys.stderr, flush=True)
     print(f"{'━' * W2}", file=sys.stderr, flush=True)
     sys.exit(0)
@@ -344,7 +347,7 @@ if not installed and not suggested:
 W = 52
 bar = "━" * W
 p(f"\n{bar}")
-p(f" 🎯 Dispatch  →  {task_type.replace('-', ' ').title()} task detected")
+p(f" \033[94m◎\033[0m Dispatch  →  {task_type.replace('-', ' ').title()} task detected")
 p(bar)
 
 if installed:

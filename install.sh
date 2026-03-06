@@ -112,7 +112,7 @@ elif [ -n "${ANTHROPIC_API_KEY:-}" ]; then
 else
     # No token, no API key — offer registration
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo " 🎯 Connect Dispatch to the hosted endpoint (free)"
+    echo " $(printf '\033[94m\xe2\x97\x8e\033[0m') Connect Dispatch to the hosted endpoint (free)"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     echo " 1. Open this URL in your browser:"

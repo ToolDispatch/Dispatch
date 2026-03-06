@@ -12,7 +12,7 @@ The hosted version gets smarter every day. As developers use Dispatch across tho
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- 🎯 Dispatch  →  Flutter task detected
+ ◎ Dispatch  →  Flutter task detected
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  RECOMMENDED (installed):
    + flutter-mobile-app-dev
