@@ -29,6 +29,40 @@ class TestExtractRecentMessages(unittest.TestCase):
         result = extract_recent_messages(transcript, n=3)
         assert result == ["build a Flutter widget"]
 
+    def test_handles_cc_nested_transcript_format(self):
+        """CC transcript wraps message inside a 'message' key, not at top level."""
+        transcript = [
+            {"type": "user", "message": {"role": "user", "content": "fix the Flutter widget"}, "uuid": "abc"},
+            {"type": "assistant", "message": {"role": "assistant", "content": "sure"}, "uuid": "def"},
+            {"type": "user", "message": {"role": "user", "content": "now set up Stripe webhooks"}, "uuid": "ghi"},
+        ]
+        result = extract_recent_messages(transcript, n=3)
+        assert len(result) == 2
+        assert result[-1] == "now set up Stripe webhooks"
+
+    def test_filters_meta_entries(self):
+        """isMeta=True entries are CC system messages (skill content) — must be excluded."""
+        transcript = [
+            {"type": "user", "isMeta": False, "message": {"role": "user", "content": "fix the Flutter widget"}},
+            {"type": "user", "isMeta": True, "message": {"role": "user", "content": "Base directory for this skill: /home/...long skill text..."}},
+            {"type": "user", "isMeta": False, "message": {"role": "user", "content": "now set up Stripe webhooks"}},
+        ]
+        result = extract_recent_messages(transcript, n=3)
+        assert len(result) == 2
+        assert "Base directory" not in result[0]
+        assert result[-1] == "now set up Stripe webhooks"
+
+    def test_filters_serialized_tool_results(self):
+        """Entries with content starting with '[' are serialized tool results — must be excluded."""
+        transcript = [
+            {"type": "user", "isMeta": False, "message": {"role": "user", "content": "fix the Flutter widget"}},
+            {"type": "user", "isMeta": False, "message": {"role": "user", "content": "[{'type': 'tool_result', 'tool_use_id': 'abc', 'content': 'File read ok'}]"}},
+            {"type": "user", "isMeta": False, "message": {"role": "user", "content": "now set up Stripe webhooks"}},
+        ]
+        result = extract_recent_messages(transcript, n=3)
+        assert len(result) == 2
+        assert result[-1] == "now set up Stripe webhooks"
+
 
 class TestShouldSkip(unittest.TestCase):
     def test_skips_short_messages(self):

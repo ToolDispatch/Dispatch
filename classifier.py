@@ -27,9 +27,14 @@ def extract_recent_messages(transcript: list, n: int = 3) -> list:
     """Extract the last n user messages from a transcript."""
     user_messages = []
     for entry in transcript:
-        if entry.get("role") != "user":
+        if entry.get("isMeta"):  # skip CC system messages (skill content, tool responses)
             continue
-        content = entry.get("content", "")
+        msg = entry.get("message", entry)  # CC transcript wraps content inside 'message'
+        if msg.get("role") != "user":
+            continue
+        content = msg.get("content", "")
+        if isinstance(content, str) and content.startswith("["):  # skip serialized tool results
+            continue
         if isinstance(content, list):
             # Extract text from content blocks
             text_parts = [block.get("text", "") for block in content if isinstance(block, dict) and block.get("type") == "text"]
