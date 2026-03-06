@@ -78,6 +78,8 @@ return json.loads(text.strip())
 
 **TASK_TYPE passed as argv, not interpolated** — Prevents shell injection. Always use `sys.argv[n]` in inline Python, never `'$TASK_TYPE'`.
 
+**`head -n -1` is GNU-only** — BSD head on macOS interprets it as "print 1 line". Use `sed '$d'` (delete last line) for portable HTTP body extraction.
+
 ---
 
 ## Testing
@@ -130,6 +132,15 @@ install.sh handles this automatically for fresh installs.
 - **2026-03-05:** Marketplace name missing from installed plugin display — extracted from path, shown as "(via marketplace)"
 - **2026-03-05:** /rank failure silently returned empty — fallback to BYOK local ranking added
 - **2026-03-05:** settings.json malformed JSON crashed install — wrapped in try/except
+- **2026-03-05:** `head -n -1` (GNU-only) broke HTTP parsing on macOS — replaced with `sed '$d'`
+- **2026-03-05:** `pip3 install` in install.sh could fail without sudo — changed to `python3 -m pip install --user`
+- **2026-03-05:** Token string-interpolated into Python source in install.sh — changed to sys.argv
+- **2026-03-05:** /rank endpoint missing rate limit — matched to /classify (30/min)
+- **2026-03-05:** DB error in check_and_increment returned (False,0,0) → false 402 — returns (None,0,0) → 500
+- **2026-03-05:** Concurrent OAuth completions caused UniqueViolation — replaced SELECT+INSERT with upsert
+- **2026-03-05:** admin set-plan silently succeeded on unknown username — now returns 404
+- **2026-03-05:** Flask session cookies lacked Secure/SameSite flags — SESSION_COOKIE_SECURE/HTTPONLY/SAMESITE=Lax
+- **2026-03-05:** gunicorn single sync worker — switched to gthread 2 workers × 4 threads (Procfile)
 
 ---
 
