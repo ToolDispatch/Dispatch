@@ -143,7 +143,7 @@ if __name__ == "__main__":
         messages = messages[-3:]
 
     if not messages or should_skip(messages[-1]):
-        print(json.dumps({"shift": False, "task_type": args.last_task_type or "general", "confidence": 0.0}))
+        print(json.dumps({"shift": False, "domain": "general", "mode": "building", "task_type": args.last_task_type or "general", "confidence": 0.0}))
         sys.exit(0)
 
     result = classify_topic_shift(messages, args.cwd, args.last_task_type, api_key=api_key)
