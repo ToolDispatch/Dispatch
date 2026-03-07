@@ -145,5 +145,93 @@ class TestClassifyTopicShift(unittest.TestCase):
         assert result["confidence"] == 0.0
 
 
+    @patch('classifier.anthropic.Anthropic')
+    def test_intra_domain_mode_shift(self, mock_client_cls):
+        """Shift within same domain when action mode changes (building → fixing)"""
+        mock_client = MagicMock()
+        mock_client_cls.return_value = mock_client
+        mock_client.messages.create.return_value = MagicMock(
+            content=[MagicMock(text=json.dumps({
+                "shift": True,
+                "domain": "flutter",
+                "mode": "fixing",
+                "task_type": "flutter-fixing",
+                "confidence": 0.88
+            }))]
+        )
+        result = classify_topic_shift(
+            messages=["this blows up with a null pointer"],
+            cwd="/home/user/myapp",
+            last_task_type="flutter-building"
+        )
+        assert result["shift"] is True
+        assert result["mode"] == "fixing"
+        assert result["task_type"] == "flutter-fixing"
+
+    @patch('classifier.anthropic.Anthropic')
+    def test_same_domain_same_mode_no_shift(self, mock_client_cls):
+        """No shift when domain and mode are both unchanged"""
+        mock_client = MagicMock()
+        mock_client_cls.return_value = mock_client
+        mock_client.messages.create.return_value = MagicMock(
+            content=[MagicMock(text=json.dumps({
+                "shift": False,
+                "domain": "flutter",
+                "mode": "building",
+                "task_type": "flutter-building",
+                "confidence": 0.15
+            }))]
+        )
+        result = classify_topic_shift(
+            messages=["what was that widget called again?"],
+            cwd="/home/user/myapp",
+            last_task_type="flutter-building"
+        )
+        assert result["shift"] is False
+
+    @patch('classifier.anthropic.Anthropic')
+    def test_mode_field_is_valid_enum_value(self, mock_client_cls):
+        """mode field in result must be one of the 7 valid action modes"""
+        valid_modes = {
+            "discovering", "designing", "building",
+            "fixing", "validating", "shipping", "maintaining"
+        }
+        mock_client = MagicMock()
+        mock_client_cls.return_value = mock_client
+        mock_client.messages.create.return_value = MagicMock(
+            content=[MagicMock(text=json.dumps({
+                "shift": True,
+                "domain": "react",
+                "mode": "building",
+                "task_type": "react-building",
+                "confidence": 0.85
+            }))]
+        )
+        result = classify_topic_shift(
+            messages=["add a new login form component"],
+            cwd="/home/user/webapp",
+            last_task_type="react-designing"
+        )
+        assert result["mode"] in valid_modes
+
+    @patch('classifier.anthropic.Anthropic')
+    def test_malformed_response_returns_all_5_fields(self, mock_client_cls):
+        """Safe default on malformed response must include all 5 fields"""
+        mock_client = MagicMock()
+        mock_client_cls.return_value = mock_client
+        mock_client.messages.create.side_effect = Exception("API error")
+        result = classify_topic_shift(
+            messages=["write the auth middleware"],
+            cwd="/home/user/project",
+            last_task_type="general"
+        )
+        assert "shift" in result
+        assert "domain" in result
+        assert "mode" in result
+        assert "task_type" in result
+        assert "confidence" in result
+        assert result["shift"] is False
+
+
 if __name__ == '__main__':
     unittest.main()
