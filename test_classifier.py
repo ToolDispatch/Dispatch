@@ -93,7 +93,9 @@ class TestClassifyTopicShift(unittest.TestCase):
         mock_client.messages.create.return_value = MagicMock(
             content=[MagicMock(text=json.dumps({
                 "shift": True,
-                "task_type": "flutter",
+                "domain": "flutter",
+                "mode": "building",
+                "task_type": "flutter-building",
                 "confidence": 0.92
             }))]
         )
@@ -103,7 +105,7 @@ class TestClassifyTopicShift(unittest.TestCase):
             last_task_type="supabase"
         )
         assert result["shift"] is True
-        assert result["task_type"] == "flutter"
+        assert result["task_type"] == "flutter-building"
         assert result["confidence"] == 0.92
 
     @patch('classifier.anthropic.Anthropic')
@@ -113,7 +115,9 @@ class TestClassifyTopicShift(unittest.TestCase):
         mock_client.messages.create.return_value = MagicMock(
             content=[MagicMock(text=json.dumps({
                 "shift": False,
-                "task_type": "flutter",
+                "domain": "flutter",
+                "mode": "building",
+                "task_type": "flutter-building",
                 "confidence": 0.95
             }))]
         )
