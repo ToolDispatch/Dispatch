@@ -2,25 +2,45 @@ import json
 import os
 import anthropic
 
-SYSTEM_PROMPT = """You are a task classifier for a developer assistant tool.
-Given the last few messages in a conversation and the current working directory,
-determine:
-1. Whether the developer has shifted to a meaningfully different task or topic
-2. What type of task it now is
-3. Your confidence level
+VALID_MODES = {
+    "discovering", "designing", "building", "fixing",
+    "validating", "shipping", "maintaining"
+}
 
-Respond with ONLY valid JSON in this exact format:
-{"shift": true/false, "task_type": "<type>", "confidence": 0.0-1.0}
+SYSTEM_PROMPT = """You are an action-mode classifier for a developer tool that surfaces the right tools at the right time.
 
-For task_type, return the most specific, descriptive label you can — it will be used to search
-a skills registry, so precision matters. Use the technology, framework, or domain name directly.
-Examples: flutter, react, nextjs, python, docker, aws, langchain, supabase, prisma, graphql,
-postgres, redis, stripe, github-actions, debugging, testing, planning, security, devops, or
-any other relevant technology. Use lowercase-hyphenated format. Prefer specific over generic.
+Given the last few messages in a conversation and the current working directory, determine:
+1. Whether the developer has shifted to a meaningfully different action mode OR domain
+2. What domain they are working in (the technology/framework/subject)
+3. What action mode they are now in
+4. Your confidence level
 
-A "shift" means the developer is starting something clearly different from their last task.
-Continuing, refining, or asking follow-up questions about the same task is NOT a shift.
-"""
+ACTION MODES (pick exactly one):
+- discovering  — researching, learning, exploring options, asking "what is" or "how does"
+- designing    — planning, architecting, deciding approach, brainstorming before building
+- building     — writing new code, creating, implementing, adding features
+- fixing       — debugging, diagnosing errors, tracing failures, something is broken
+- validating   — testing, reviewing, verifying correctness, checking work
+- shipping     — deploying, releasing, publishing, going live, CI/CD
+- maintaining  — refactoring, improving, cleaning up, restructuring existing code
+
+A "shift" means the developer has moved to a different action mode OR a different domain
+compared to their last task. Both count as shifts. Continuing, refining, or asking
+follow-up questions about the same task in the same mode is NOT a shift.
+
+Use natural developer language to infer mode — not just keywords.
+Examples:
+- "this blows up with a null" → fixing
+- "let me sanity check this" → validating
+- "it works but feels gross" → maintaining
+- "how should I structure this?" → designing
+- "write the auth middleware" → building
+
+Respond with ONLY valid JSON:
+{"shift": true/false, "domain": "<technology>", "mode": "<mode>", "task_type": "<domain>-<mode>", "confidence": 0.0-1.0}
+
+For domain, use the most specific label: flutter, react, supabase, dispatch, postgres, stripe, etc.
+Use lowercase-hyphenated format. If no clear domain, use "general"."""
 
 
 def extract_recent_messages(transcript: list, n: int = 3) -> list:
@@ -81,7 +101,7 @@ Has the developer shifted to a new task?"""
         return json.loads(text.strip())
 
     except Exception:
-        return {"shift": False, "task_type": last_task_type or "general", "confidence": 0.0}
+        return {"shift": False, "domain": "general", "mode": "building", "task_type": "general", "confidence": 0.0}
 
 
 if __name__ == "__main__":
