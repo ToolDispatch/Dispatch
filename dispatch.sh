@@ -313,57 +313,88 @@ HAS_RECS=$(python3 -c "
 import json, sys
 try:
     r = json.loads(sys.argv[1])
-    print('yes' if r.get('installed') or r.get('suggested') else 'no')
+    has = bool(r.get('all') or r.get('installed') or r.get('suggested'))
+    print('yes' if has else 'no')
 except:
     print('no')
 " "$RECOMMENDATIONS" 2>/dev/null || echo "no")
 [ "$HAS_RECS" != "yes" ] && exit 0
 
 # ── Output to stdout — CC injects this into Claude's context ──────────────
-python3 - "$TASK_TYPE" "$RECOMMENDATIONS" "$CONFIDENCE" <<'PYEOF'
+python3 - "$TASK_TYPE" "$RECOMMENDATIONS" "$CONFIDENCE" "$TRANSCRIPT_PATH" <<'PYEOF'
 import json, sys
 
 task_type = sys.argv[1]
 try:
     recs = json.loads(sys.argv[2])
 except Exception:
-    recs = {"installed": [], "suggested": []}
+    recs = {"all": [], "top_pick": None}
 
 confidence = float(sys.argv[3]) if len(sys.argv) > 3 and sys.argv[3] else 0.0
 conf_label = "high" if confidence >= 0.85 else "medium"
 task_display = task_type.replace('-', ' ').title()
+transcript_path = sys.argv[4] if len(sys.argv) > 4 else ""
 
-installed = recs.get("installed", [])
-suggested = recs.get("suggested", [])
+# Prefer new unified list; fall back to old format
+all_tools = recs.get("all", [])
+if not all_tools:
+    for p in recs.get("installed", []):
+        p.setdefault("installed", True)
+        p.setdefault("score", 70)
+        all_tools.append(p)
+    for s in recs.get("suggested", []):
+        s.setdefault("installed", False)
+        s.setdefault("score", 60)
+        all_tools.append(s)
+
+top_pick = recs.get("top_pick") or (all_tools[0] if all_tools else None)
 
 lines = [
     f"[DISPATCH] Task shift detected: {task_display} ({conf_label} confidence)",
     "",
+    "Ranked tools for this task:",
 ]
 
-if installed:
-    lines.append("Recommended tools (already installed):")
-    for p in installed:
-        lines.append(f"  + {p['name']}")
-        if p.get('reason'):
-            lines.append(f"    Why: {p['reason']}")
+for i, tool in enumerate(all_tools, 1):
+    name = tool.get("name", "")
+    score = tool.get("score", "?")
+    installed = tool.get("installed", True)
+    reason = tool.get("reason", "")
+    install_cmd = tool.get("install_cmd", "")
+    install_url = tool.get("install_url", "")
+    marketplace = tool.get("marketplace", "")
 
-if suggested:
-    lines.append("")
-    lines.append("Suggested tools (not installed):")
-    for s in suggested:
-        lines.append(f"  - {s['name']}")
-        if s.get('reason'):
-            lines.append(f"    Why: {s['reason']}")
-        if s.get('install_cmd'):
-            lines.append(f"    Install: {s['install_cmd']}")
+    status = "(installed)" if installed else "(not installed)"
+    if marketplace:
+        status = f"(installed via {marketplace})"
+    top_marker = " ← TOP PICK" if i == 1 else ""
 
-if not installed and not suggested:
-    lines.append("No matching tools found for this task type.")
+    lines.append(f"  {i}. {name} [{score}/100]{top_marker} {status}")
+    if reason:
+        lines.append(f"     Why: {reason}")
+    if not installed and install_cmd:
+        # Single command: install + relaunch CC
+        lines.append(f"     Install + restart: {install_cmd} && claude")
+    if not installed and install_url:
+        lines.append(f"     More info: {install_url}")
 
+# Install hint when top pick is not installed
+top_needs_install = top_pick and not top_pick.get("installed", True)
+if top_needs_install:
+    lines.extend([
+        "",
+        "⚠ Installing requires restarting this CC session.",
+        "  Before installing: run /compact to save a session summary.",
+        "  Then paste this into your terminal (installs + relaunches CC):",
+        f"    {top_pick.get('install_cmd', 'npx skills add <skill> -y')} && claude",
+    ])
+    if transcript_path:
+        lines.append(f"  Your session transcript is saved at: {transcript_path}")
+
+top_name = top_pick["name"] if top_pick else "the top tool"
 lines.extend([
     "",
-    "Before proceeding with any of the above tasks: briefly summarize these tool recommendations, ask which (if any) I want to activate or install, and do not take any other action until I respond."
+    f'Before proceeding: state that you plan to use {top_name} for this task (one sentence why). Show this ranked list. Ask if I want a different tool or to install an uninstalled one. Wait for my response before taking any other action.',
 ])
 
 print('\n'.join(lines))
