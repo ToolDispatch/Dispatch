@@ -294,10 +294,10 @@ print(json.dumps({
         # Server rank failed — fall back to local BYOK ranking
         RECOMMENDATIONS=$(python3 -c "
 import sys, json
-sys.path.insert(0, '$SKILL_ROUTER_DIR')
+sys.path.insert(0, sys.argv[3])
 from evaluator import build_recommendation_list
-print(json.dumps(build_recommendation_list(sys.argv[1])))
-" "$TASK_TYPE" 2>/dev/null || echo '{"installed":[],"suggested":[]}')
+print(json.dumps(build_recommendation_list(sys.argv[1], context_snippet=sys.argv[2])))
+" "$TASK_TYPE" "$CURRENT_PROMPT" "$SKILL_ROUTER_DIR" 2>/dev/null || echo '{"installed":[],"suggested":[]}')
     fi
 else
     # ── BYOK rank ──────────────────────────────────────────────────────────
