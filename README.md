@@ -173,7 +173,7 @@ Detection uses Claude Haiku with semantic understanding — not keywords. *"This
 
 **Stage 1 — Classification (every message, ~100ms)**
 
-Haiku receives your last 3 messages and current working directory. Returns `{"shift": bool, "task_type": str, "confidence": float}`. If no shift or confidence below 0.7, exits silently — you never see it.
+Haiku receives your last 3 messages and current working directory. Returns `{"shift": bool, "domain": str, "mode": str, "task_type": str, "confidence": float}`. If no shift or confidence below 0.7, exits silently — you never see it.
 
 **Smart skipping** — messages of 3 words or fewer skip classification entirely.
 
