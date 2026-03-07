@@ -38,6 +38,7 @@ Respond with ONLY valid JSON:
 
 Limit to top 4 installed and top 3 suggested. Only include genuinely relevant ones.
 If nothing is relevant, return empty lists.
+For each tool, write a specific 1-sentence 'reason' explaining exactly why it helps with this specific task and context.
 """
 
 
@@ -142,7 +143,8 @@ def rank_recommendations(
     task_type: str,
     installed_plugins: list,
     installed_skills: list,
-    registry_results: list
+    registry_results: list,
+    context_snippet: str = None
 ) -> dict:
     """Use Haiku to rank and filter recommendations by relevance."""
     try:
@@ -151,7 +153,9 @@ def rank_recommendations(
             return {"installed": [], "suggested": []}
         client = anthropic.Anthropic(api_key=api_key)
 
-        user_content = f"""Task type: {task_type}
+        context_line = f"\nUser's current message: \"{context_snippet[:200]}\"" if context_snippet else ""
+
+        user_content = f"""Developer is working on: {task_type}{context_line}
 
 Installed plugins ({len(installed_plugins)}):
 {json.dumps([{"name": p["name"], "desc": p["description"][:100]} for p in installed_plugins], indent=2)}
@@ -184,7 +188,7 @@ Which are most relevant for a {task_type} task?"""
         return {"installed": [], "suggested": []}
 
 
-def build_recommendation_list(task_type: str, installed_plugins: list = None, installed_skills: list = None) -> dict:
+def build_recommendation_list(task_type: str, installed_plugins: list = None, installed_skills: list = None, context_snippet: str = None) -> dict:
     """Full evaluation pipeline: scan installed -> search registry -> rank."""
     if installed_plugins is None:
         installed_plugins = scan_installed_plugins(PLUGINS_DIR)
@@ -195,7 +199,8 @@ def build_recommendation_list(task_type: str, installed_plugins: list = None, in
         task_type=task_type,
         installed_plugins=installed_plugins,
         installed_skills=installed_skills,
-        registry_results=registry_results
+        registry_results=registry_results,
+        context_snippet=context_snippet
     )
     # Enrich ranked installed items with marketplace info from the original scan
     plugin_map = {p["name"]: p for p in installed_plugins}

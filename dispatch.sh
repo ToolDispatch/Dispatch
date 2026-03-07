@@ -274,9 +274,10 @@ except Exception:
 print(json.dumps({
     'task_type': sys.argv[1],
     'installed_plugins': installed_plugins,
-    'installed_skills': installed_skills
+    'installed_skills': installed_skills,
+    'context_snippet': sys.argv[3]
 }))
-" "$TASK_TYPE" "$SKILL_ROUTER_DIR" > "$RANK_TMP" 2>/dev/null || python3 -c "import json,sys; print(json.dumps({'task_type':sys.argv[1],'installed_plugins':[],'installed_skills':[]}))" "$TASK_TYPE" > "$RANK_TMP"
+" "$TASK_TYPE" "$SKILL_ROUTER_DIR" "$CURRENT_PROMPT" > "$RANK_TMP" 2>/dev/null || python3 -c "import json,sys; print(json.dumps({'task_type':sys.argv[1],'installed_plugins':[],'installed_skills':[]}))" "$TASK_TYPE" > "$RANK_TMP"
     RANK_HTTP=$(curl -s -w "\n%{http_code}" \
         -X POST "$DISPATCH_ENDPOINT/rank" \
         -H "Authorization: Bearer $DISPATCH_TOKEN" \
@@ -302,11 +303,10 @@ else
     # ── BYOK rank ──────────────────────────────────────────────────────────
     RECOMMENDATIONS=$(python3 -c "
 import sys, json
-sys.path.insert(0, '$SKILL_ROUTER_DIR')
+sys.path.insert(0, sys.argv[3])
 from evaluator import build_recommendation_list
-task_type = sys.argv[1]
-print(json.dumps(build_recommendation_list(task_type)))
-" "$TASK_TYPE" 2>/dev/null || echo '{"installed":[],"suggested":[]}')
+print(json.dumps(build_recommendation_list(sys.argv[1], context_snippet=sys.argv[2])))
+" "$TASK_TYPE" "$CURRENT_PROMPT" "$SKILL_ROUTER_DIR" 2>/dev/null || echo '{"installed":[],"suggested":[]}')
 fi
 
 HAS_RECS=$(python3 -c "

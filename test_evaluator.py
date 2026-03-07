@@ -129,6 +129,26 @@ class TestBuildRecommendationList(unittest.TestCase):
         assert "marketplace" not in result["installed"][0]
 
 
+class TestBuildRecommendationListWithContext(unittest.TestCase):
+    @patch('evaluator.search_registry', return_value=[])
+    @patch('evaluator.get_installed_skills', return_value=[])
+    @patch('evaluator.rank_recommendations')
+    def test_passes_context_snippet_to_rank(self, mock_rank, _skills, _registry):
+        """context_snippet is accepted and forwarded without crashing."""
+        mock_rank.return_value = {"installed": [], "suggested": []}
+        result = build_recommendation_list(
+            "flutter",
+            installed_plugins=[],
+            context_snippet="debugging a null pointer crash in my Flutter widget"
+        )
+        assert isinstance(result, dict)
+        assert "installed" in result
+        assert "suggested" in result
+        # Verify context_snippet was passed through to rank_recommendations
+        _, kwargs = mock_rank.call_args
+        assert kwargs.get("context_snippet") == "debugging a null pointer crash in my Flutter widget"
+
+
 class TestRankHandlesEmptyContentList(unittest.TestCase):
     @patch('evaluator.anthropic.Anthropic')
     @patch.dict('os.environ', {'ANTHROPIC_API_KEY': 'test-key'})
