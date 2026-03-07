@@ -245,7 +245,7 @@ def build_recommendation_list(task_type: str, installed_plugins: list = None, in
                 item["marketplace"] = mp
         else:
             # Derive GitHub URL from skill ID: "owner/repo@skill-name" -> "https://github.com/owner/repo"
-            if "@" in name and "/" in name:
+            if "@" in name and "/" in name and "install_url" not in item:
                 repo_part = name.split("@")[0]
                 item["install_url"] = f"https://github.com/{repo_part}"
 

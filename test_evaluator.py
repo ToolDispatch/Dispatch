@@ -77,6 +77,31 @@ class TestRankRecommendations(unittest.TestCase):
         assert result["all"][1]["installed"] is False
 
     @patch('evaluator.anthropic.Anthropic')
+    @patch.dict('os.environ', {'ANTHROPIC_API_KEY': 'test-key'})
+    def test_normalizes_old_format_to_all_list(self, mock_client_cls):
+        """If Haiku returns old {installed, suggested} format, convert to {all: [...]}."""
+        mock_client = MagicMock()
+        mock_client_cls.return_value = mock_client
+        mock_client.messages.create.return_value = MagicMock(
+            content=[MagicMock(text=json.dumps({
+                "installed": [{"name": "flutter-mobile-app-dev", "reason": "Flutter support"}],
+                "suggested": [{"name": "firebase/agent-skills@firebase-basics",
+                               "install_cmd": "npx skills add firebase/agent-skills@firebase-basics -y",
+                               "reason": "Firebase"}]
+            }))]
+        )
+        result = rank_recommendations("flutter", [], [], [])
+        assert "all" in result
+        assert len(result["all"]) == 2
+        # installed items get score 70, suggested get 60
+        installed_items = [t for t in result["all"] if t.get("installed")]
+        suggested_items = [t for t in result["all"] if not t.get("installed")]
+        assert len(installed_items) == 1
+        assert installed_items[0]["score"] == 70
+        assert len(suggested_items) == 1
+        assert suggested_items[0]["score"] == 60
+
+    @patch('evaluator.anthropic.Anthropic')
     def test_handles_ranking_failure_gracefully(self, mock_client_cls):
         mock_client = MagicMock()
         mock_client_cls.return_value = mock_client
