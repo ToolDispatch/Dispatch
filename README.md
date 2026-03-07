@@ -4,31 +4,37 @@
 
 # Dispatch
 
+<p align="center">
+  <a href="https://github.com/VisionAIrySE/Dispatch/stargazers"><img src="https://img.shields.io/github/stars/VisionAIrySE/Dispatch?style=social" alt="GitHub Stars"></a>
+  &nbsp;
+  <img src="https://img.shields.io/badge/python-3.8+-blue" alt="Python 3.8+">
+  &nbsp;
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
+  &nbsp;
+  <img src="https://img.shields.io/badge/works%20with-Claude%20Code-orange" alt="Works with Claude Code">
+</p>
+
 **The missing layer for Claude Code — automatically surfaces the right plugins and skills before every task.**
 
 Claude Code has 500+ plugins and skills across multiple marketplaces. You're probably using 5 of them. Dispatch watches your conversation, detects when you shift to a new task, and recommends exactly what you need — before Claude responds.
 
 The hosted version gets smarter every day. As developers use Dispatch across thousands of sessions, aggregate patterns sharpen what gets recommended for each stack. New tools published to the skills registry are discovered automatically — no updates, no configuration, no manual curation. The longer Dispatch runs, the better it gets at knowing what you need before you do.
 
+<!-- GIF demo goes here after Loom recording -->
+
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- ◎ Dispatch  →  Flutter task detected
+ ◎ Dispatch — Flutter Fixing  [high confidence]
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  RECOMMENDED (installed):
    + flutter-mobile-app-dev
      Direct Flutter/Dart development support
-   + firebase-firestore-basics
-     Firestore queries and Security Rules
 
  SUGGESTED (not installed):
-   ↓ firebase/agent-skills@firebase-app-hosting
-     → npx skills add firebase/agent-skills@firebase-app-hosting
-
- [Enter] or wait 3s to proceed
+   ↓ systematic-debugging
+     → npx skills add visionairy/systematic-debugging
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
-
-> **Early release.** Works well in testing. If something breaks, open an Issue — this project moves fast.
 
 ---
 
@@ -49,7 +55,7 @@ Every message you send, Dispatch:
 1. **Detects action mode shifts** — Uses Claude Haiku to classify whether you've shifted domain or mode within a domain
 2. **Evaluates your plugins** — Scans every installed Claude Code plugin and agent skill
 3. **Searches the registry** — Queries [skills.sh](https://skills.sh) for relevant uninstalled options
-4. **Shows recommendations** — Pauses 3 seconds so you can see what's available, then proceeds automatically
+4. **Shows recommendations** — Surfaces tools in your scroll buffer; Claude asks if you want to install anything before continuing
 
 It's invisible when you don't need it. It surfaces when you do.
 
