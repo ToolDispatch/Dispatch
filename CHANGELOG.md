@@ -4,6 +4,24 @@ All notable changes to Dispatch are documented here.
 
 ---
 
+## v0.4.0 — 2026-03-07
+
+### Added
+
+- **Collective ranking with scores** — All available tools (installed and marketplace) are now ranked together on a 0-100 scale. Haiku evaluates them as one pool against the specific task context, not as separate lists. Score reflects relevance to what you're actually doing right now.
+- **Numbered selection list** — Output is a ranked numbered list. The TOP PICK is marked. Claude announces it explicitly, explains why in one sentence, and asks if you want something else before proceeding.
+- **Install + restart in one command** — Each uninstalled tool shows a combined `npx skills add ... && claude` command. Copy it, paste it in your terminal — installs the tool and relaunches CC in one step.
+- **GitHub URL for uninstalled tools** — Each uninstalled skill shows a `More info:` GitHub URL derived from the skill ID. No searching required.
+- **Pre-install guidance** — When the top pick isn't installed, Dispatch suggests running `/compact` to save session context before restarting. Your session transcript path is also shown for reference.
+
+### Changed
+
+- **`build_recommendation_list` return format** — Now returns `{all, top_pick, installed, suggested}`. `installed` and `suggested` are derived from `all` for backward compatibility. `top_pick` is the highest-scored item.
+- **Marketplace shown in status** — Installed tools now show `(installed via marketplace-name)` instead of just `(installed)`.
+- **Score threshold** — Only tools with relevance score >= 40 are shown. Irrelevant tools are excluded entirely rather than ranked low.
+
+---
+
 ## v0.3.0 — 2026-03-07
 
 ### Added
