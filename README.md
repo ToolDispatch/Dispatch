@@ -55,7 +55,7 @@ Every message you send, Dispatch:
 1. **Detects action mode shifts** — Uses Claude Haiku to classify whether you've shifted domain or mode within a domain
 2. **Evaluates your plugins** — Scans every installed Claude Code plugin and agent skill
 3. **Searches the registry** — Queries [skills.sh](https://skills.sh) for relevant uninstalled options
-4. **Shows recommendations** — Surfaces tools in your scroll buffer; Claude asks if you want to install anything before continuing
+4. **Shows recommendations** — Injects tool recommendations directly into Claude's context. Claude surfaces them inline, explains why each is relevant to your current work, and waits for your response before proceeding
 
 It's invisible when you don't need it. It surfaces when you do.
 
@@ -105,7 +105,7 @@ The `anthropic` Python package installs automatically via `install.sh`.
 
 ## Cost
 
-**Hosted (recommended):** Free for 5 detections/day. Upgrade for unlimited at **$6/month** → [dispatch.visionairy.biz/pro](https://dispatch.visionairy.biz/pro)
+**Hosted (recommended):** Free for 8 detections/day. Upgrade for unlimited at **$6/month** → [dispatch.visionairy.biz/pro](https://dispatch.visionairy.biz/pro)
 
 The hosted version is more than convenience — it's collective intelligence. Every session across every user improves what gets recommended for your stack. BYOK runs the same algorithm in isolation; hosted runs it with the benefit of aggregate signal from the whole community.
 
@@ -181,7 +181,7 @@ Detection uses Claude Haiku with semantic understanding — not keywords. *"This
 
 Haiku receives your last 3 messages and current working directory. Returns `{"shift": bool, "domain": str, "mode": str, "task_type": str, "confidence": float}`. If no shift or confidence below 0.7, exits silently — you never see it.
 
-**Smart skipping** — messages of 3 words or fewer skip classification entirely.
+**Smart skipping** — messages of 2 words or fewer skip classification entirely.
 
 **Stage 2 — Evaluation (on confirmed shift only)**
 
@@ -270,11 +270,23 @@ This is a vibe coding project — I built Dispatch for myself over a weekend usi
 
 ---
 
+## Security
+
+Dispatch was designed to be auditable and minimal:
+
+- **No `~/.claude/CLAUDE.md` modification** — install.sh does not touch your global Claude instructions. Recommendations surface via Claude Code's native hook context injection.
+- **No credential harvesting** — Dispatch reads only `ANTHROPIC_API_KEY` from your environment. It does not read other tool config files (e.g., `.mcp.json`).
+- **No shell injection** — task type labels are always passed as `sys.argv`, never interpolated into shell strings.
+- **Open source** — every line of `dispatch.sh`, `classifier.py`, and `evaluator.py` is in this repo. Verify what runs on your machine before installing.
+- **10-second hard timeout** — Claude Code enforces a 10s limit on the hook. Dispatch cannot block or hang your session.
+
+---
+
 ## Privacy
 
 **Self-hosted (BYOK):** Haiku API calls go directly from your machine to Anthropic. No data passes through our servers, ever.
 
-**Hosted:** Classification requests pass through dispatch.visionairy.biz. We store only your GitHub username, email, and usage count. We will never sell individual session data. Aggregate patterns — what stacks developers work on, which plugins get recommended — may be used to improve recommendations for everyone, and only in anonymized form.
+**Hosted:** Your current message and working directory are sent to dispatch.visionairy.biz for classification. This data is passed to Claude Haiku and immediately discarded — we do not store conversation content. We store only your GitHub username, email, usage count, and detected task types (e.g., `flutter-fixing`). We will never sell individual data. Aggregate patterns may be used to improve recommendations in anonymized form.
 
 You'll always have the self-hosted option with zero data leaving your machine.
 
@@ -282,7 +294,7 @@ You'll always have the self-hosted option with zero data leaving your machine.
 
 ## Support
 
-Free plan gives you 5 detections/day — enough to evaluate whether Dispatch fits your workflow.
+Free plan gives you 8 detections/day — enough to evaluate whether Dispatch fits your workflow across multiple sessions.
 
 If it does, [upgrade to Pro for $6/month](https://dispatch.visionairy.biz/pro). Unlimited detections, and you're contributing to the data pool that makes recommendations sharper for everyone. The more Pro users, the better the signal.
 
