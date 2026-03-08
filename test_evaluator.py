@@ -287,5 +287,55 @@ class TestBuildRecommendationListInstallUrl(unittest.TestCase):
         assert result["top_pick"] is None
 
 
+class TestScoreGapTruncation(unittest.TestCase):
+    @patch('evaluator.search_registry', return_value=[])
+    @patch('evaluator.get_installed_skills', return_value=[])
+    @patch('evaluator.rank_recommendations')
+    def test_cuts_after_25_point_cliff(self, mock_rank, _skills, _registry):
+        mock_rank.return_value = {
+            "all": [
+                {"name": "a", "score": 90, "installed": True, "reason": "top"},
+                {"name": "b", "score": 85, "installed": True, "reason": "good"},
+                {"name": "c", "score": 72, "installed": True, "reason": "ok"},
+                {"name": "d", "score": 44, "installed": False, "install_cmd": "npx skills add x/y@d -y", "reason": "weak"},
+                {"name": "e", "score": 42, "installed": False, "install_cmd": "npx skills add x/y@e -y", "reason": "weak"},
+            ]
+        }
+        result = build_recommendation_list("flutter")
+        # 72 → 44 is a 28-point cliff; keep a, b, c only
+        assert len(result["all"]) == 3
+        assert result["all"][-1]["name"] == "c"
+
+    @patch('evaluator.search_registry', return_value=[])
+    @patch('evaluator.get_installed_skills', return_value=[])
+    @patch('evaluator.rank_recommendations')
+    def test_no_cut_when_gap_under_25(self, mock_rank, _skills, _registry):
+        mock_rank.return_value = {
+            "all": [
+                {"name": "a", "score": 90, "installed": True, "reason": "top"},
+                {"name": "b", "score": 68, "installed": True, "reason": "ok"},
+            ]
+        }
+        result = build_recommendation_list("flutter")
+        # 90 → 68 = 22-point gap, under threshold — keep both
+        assert len(result["all"]) == 2
+
+    @patch('evaluator.search_registry', return_value=[])
+    @patch('evaluator.get_installed_skills', return_value=[])
+    @patch('evaluator.rank_recommendations')
+    def test_cut_at_exact_25_point_gap(self, mock_rank, _skills, _registry):
+        mock_rank.return_value = {
+            "all": [
+                {"name": "a", "score": 80, "installed": True, "reason": "top"},
+                {"name": "b", "score": 55, "installed": False, "install_cmd": "npx skills add x/y@b -y", "reason": "ok"},
+                {"name": "c", "score": 50, "installed": False, "install_cmd": "npx skills add x/y@c -y", "reason": "low"},
+            ]
+        }
+        result = build_recommendation_list("flutter")
+        # 80 → 55 = exactly 25-point gap — cut after "a"
+        assert len(result["all"]) == 1
+        assert result["all"][0]["name"] == "a"
+
+
 if __name__ == '__main__':
     unittest.main()

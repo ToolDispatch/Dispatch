@@ -298,6 +298,17 @@ def build_recommendation_list(task_type: str, installed_plugins: list = None, in
     )
 
     all_tools = result.get("all", [])
+
+    # Score gap truncation: cut list at first gap >= 25 points
+    if len(all_tools) > 1:
+        cutoff = len(all_tools)
+        for i in range(1, len(all_tools)):
+            gap = all_tools[i-1].get("score", 0) - all_tools[i].get("score", 0)
+            if gap >= 25:
+                cutoff = i
+                break
+        all_tools = all_tools[:cutoff]
+
     plugin_map = {p["name"]: p for p in installed_plugins}
 
     for item in all_tools:
