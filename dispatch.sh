@@ -291,8 +291,8 @@ if [ -n "$DISPATCH_TOKEN" ]; then
 import json, sys, os
 sys.path.insert(0, sys.argv[2])
 try:
-    from evaluator import scan_installed_plugins, get_installed_skills, PLUGINS_DIR
-    installed_plugins = scan_installed_plugins(PLUGINS_DIR)
+    from evaluator import scan_installed_plugins, get_installed_skills, scan_mcp_servers, PLUGINS_DIR
+    installed_plugins = scan_installed_plugins(PLUGINS_DIR) + scan_mcp_servers()
     installed_skills = get_installed_skills()
 except Exception:
     installed_plugins = []

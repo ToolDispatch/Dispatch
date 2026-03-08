@@ -1,8 +1,10 @@
 import json
+import os
 import unittest
 from unittest.mock import patch, MagicMock
 from evaluator import (
     scan_installed_plugins,
+    scan_mcp_servers,
     get_installed_skills,
     search_registry,
     rank_recommendations,
@@ -335,6 +337,46 @@ class TestScoreGapTruncation(unittest.TestCase):
         # 80 → 55 = exactly 25-point gap — cut after "a"
         assert len(result["all"]) == 1
         assert result["all"][0]["name"] == "a"
+
+
+class TestScanMcpServers(unittest.TestCase):
+    def test_returns_empty_list_when_no_mcp_json(self):
+        result = scan_mcp_servers(cwd="/nonexistent/path/xyz")
+        assert result == []
+
+    def test_parses_mcp_servers(self):
+        import tempfile
+        mcp_data = {
+            "mcpServers": {
+                "github": {"command": "npx", "args": ["@modelcontextprotocol/server-github"]},
+                "supabase": {"command": "npx", "description": "Supabase database access"}
+            }
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mcp_file = os.path.join(tmpdir, ".mcp.json")
+            with open(mcp_file, "w") as f:
+                json.dump(mcp_data, f)
+            result = scan_mcp_servers(cwd=tmpdir)
+        assert len(result) == 2
+        names = [s["name"] for s in result]
+        assert "github" in names
+        assert "supabase" in names
+        assert all("description" in s for s in result)
+        assert all(s.get("source") == "mcp" for s in result)
+
+    def test_deduplicates_across_files(self):
+        """Same server in global and project .mcp.json appears only once."""
+        import tempfile
+        mcp_data = {"mcpServers": {"github": {"command": "npx"}}}
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mcp_file = os.path.join(tmpdir, ".mcp.json")
+            with open(mcp_file, "w") as f:
+                json.dump(mcp_data, f)
+            # Patch global path to point to same file
+            with patch("evaluator.os.path.expanduser", return_value=mcp_file):
+                result = scan_mcp_servers(cwd=tmpdir)
+        github_count = sum(1 for s in result if s["name"] == "github")
+        assert github_count == 1
 
 
 if __name__ == '__main__':

@@ -88,6 +88,33 @@ def scan_installed_plugins(plugins_dir: str) -> list:
     return plugins
 
 
+def scan_mcp_servers(cwd: str = None) -> list:
+    """Scan .mcp.json files for installed MCP servers. Returns [{name, description, source, marketplace}]."""
+    paths = [os.path.expanduser("~/.claude/.mcp.json")]
+    if cwd:
+        paths.append(os.path.join(cwd, ".mcp.json"))
+
+    servers = []
+    seen = set()
+    for path in paths:
+        try:
+            with open(path) as f:
+                data = json.load(f)
+            for name, config in data.get("mcpServers", {}).items():
+                if name not in seen:
+                    seen.add(name)
+                    description = config.get("description", f"MCP server providing {name} integration")
+                    servers.append({
+                        "name": name,
+                        "description": description,
+                        "source": "mcp",
+                        "marketplace": "mcp"
+                    })
+        except Exception:
+            continue
+    return servers
+
+
 def get_installed_skills() -> list:
     """Get list of installed agent skills via npx skills list. Cached for 1 hour."""
     cache = _load_cache()
@@ -286,6 +313,8 @@ def build_recommendation_list(task_type: str, installed_plugins: list = None, in
     """
     if installed_plugins is None:
         installed_plugins = scan_installed_plugins(PLUGINS_DIR)
+        mcp_servers = scan_mcp_servers()
+        installed_plugins = installed_plugins + mcp_servers
     if installed_skills is None:
         installed_skills = get_installed_skills()
     registry_results = search_registry(task_type)
