@@ -22,18 +22,30 @@ The hosted version gets smarter every day. As developers use Dispatch across tho
 
 <!-- GIF demo goes here after Loom recording -->
 
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- ◎ Dispatch — Flutter Fixing  [high confidence]
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- RECOMMENDED (installed):
-   + flutter-mobile-app-dev
-     Direct Flutter/Dart development support
+When you shift tasks, Claude pauses and surfaces this before responding:
 
- SUGGESTED (not installed):
-   ↓ systematic-debugging
-     → npx skills add visionairy/systematic-debugging
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+[DISPATCH] Task shift detected: Flutter Fixing (high confidence)
+
+Ranked tools for this task:
+
+  1. flutter-mobile-app-dev [92/100] ← TOP PICK (installed via claude-plugins-official)
+     Why: Provides Flutter/Dart-specific debugging workflows directly relevant to
+     the widget rendering issue you're tracking down.
+
+  2. superpowers:systematic-debugging [78/100] (installed)
+     Why: Gives Claude a structured hypothesis-driven debugging process — useful
+     for isolating the root cause before you start changing code.
+
+  3. firebase/agent-skills@firebase-basics [61/100] (not installed)
+     Why: If your widget reads from Firestore, this adds Firebase-aware context
+     to the debugging session.
+     Install + restart: npx skills add firebase/agent-skills@firebase-basics -y && claude
+     More info: https://github.com/firebase/agent-skills
+
+I plan to use flutter-mobile-app-dev for this task — it's the strongest match
+for Flutter-specific debugging. Would you like to use a different tool, or
+install one of the uninstalled options? Let me know before I proceed.
 ```
 
 ---
@@ -55,9 +67,39 @@ Every message you send, Dispatch:
 1. **Detects action mode shifts** — Uses Claude Haiku to classify whether you've shifted domain or mode within a domain
 2. **Evaluates your plugins** — Scans every installed Claude Code plugin and agent skill
 3. **Searches the registry** — Queries [skills.sh](https://skills.sh) for relevant uninstalled options
-4. **Shows recommendations** — Injects tool recommendations directly into Claude's context. Claude surfaces them inline, explains why each is relevant to your current work, and waits for your response before proceeding
+4. **Ranks everything together** — Scores all tools (installed + uninstalled) 0-100 for your specific task, presents a numbered list, and has Claude announce its top pick before proceeding
+5. **Waits for your choice** — Claude names the tool it plans to use, explains why in one sentence, and asks if you want something different before taking any action
 
 It's invisible when you don't need it. It surfaces when you do.
+
+---
+
+## Using recommendations
+
+When Dispatch fires, Claude will:
+
+1. **Name its top pick** — the highest-scoring tool for your current task
+2. **Show the ranked list** — all relevant tools with scores, installed status, and a one-sentence reason for each
+3. **Wait** — it won't proceed until you respond
+
+**Your options:**
+- Say nothing special → Claude uses the top pick
+- Say `"use 2"` → Claude uses tool #2 instead
+- Say `"install 3"` → Claude walks you through installing it
+
+**Installing an uninstalled tool** requires restarting your CC session (Claude Code loads plugins at startup). Before you install:
+
+```
+/compact
+```
+
+This saves a compressed summary of your session. Then paste the combined install + relaunch command shown in the recommendations:
+
+```bash
+npx skills add firebase/agent-skills@firebase-basics -y && claude
+```
+
+One command installs the tool and reopens CC. Your session context is preserved via `/compact` — just continue from where you left off.
 
 ---
 
@@ -185,7 +227,9 @@ Haiku receives your last 3 messages and current working directory. Returns `{"sh
 
 **Stage 2 — Evaluation (on confirmed shift only)**
 
-Scans `~/.claude/plugins/marketplaces/` for installed plugins, runs `npx skills list` for agent skills, searches the registry for uninstalled matches. Haiku ranks everything by relevance and presents the top results.
+Scans `~/.claude/plugins/marketplaces/` for installed plugins, runs `npx skills list` for agent skills, searches the registry for uninstalled matches. Haiku ranks all of them together — installed and uninstalled as one pool — assigning a 0-100 relevance score for your specific task. Only tools scoring 40+ are shown. Top 6 maximum.
+
+**A note on recommendation accuracy:** Installed plugins are ranked using their full descriptions, so reasons are grounded. Uninstalled registry skills are ranked from their skill ID alone (e.g., `firebase/agent-skills@firebase-firestore-basics`) — reasons for those are inferred from the name, not a full description, so treat them as directional rather than precise. The more plugins you have installed, the sharper the recommendations.
 
 ---
 
