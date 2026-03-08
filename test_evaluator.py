@@ -47,6 +47,29 @@ class TestSearchRegistry(unittest.TestCase):
             result = search_registry("anything")
         assert result == []
 
+    def test_returns_dicts_with_id_and_description(self):
+        """search_registry must return list of dicts, not bare strings."""
+        result = search_registry("flutter")
+        if result:  # only assert structure if results returned
+            assert isinstance(result[0], dict)
+            assert "id" in result[0]
+            assert "description" in result[0]
+
+    def test_multi_term_search_calls_search_for_each_term(self):
+        """Compound task type searches multiple terms."""
+        with patch("evaluator._search_one_term") as mock_search:
+            mock_search.return_value = []
+            result = search_registry("firebase-flutter")
+        # Both "firebase" and "flutter" terms should be searched
+        assert mock_search.call_count == 2
+
+    def test_multi_term_deduplicates_results(self):
+        """Same skill from multiple term searches appears only once."""
+        with patch("evaluator._search_one_term") as mock_search:
+            mock_search.return_value = [{"id": "firebase/agent-skills@firebase-basics", "description": "Firebase"}]
+            result = search_registry("firebase-firebase")  # same term twice (edge case)
+        assert len([r for r in result if r["id"] == "firebase/agent-skills@firebase-basics"]) == 1
+
 
 class TestRankRecommendations(unittest.TestCase):
     @patch('evaluator.anthropic.Anthropic')
@@ -68,7 +91,7 @@ class TestRankRecommendations(unittest.TestCase):
             task_type="flutter",
             installed_plugins=[{"name": "flutter-mobile-app-dev", "description": "Flutter dev"}],
             installed_skills=[],
-            registry_results=["firebase/agent-skills@firebase-basics"]
+            registry_results=[{"id": "firebase/agent-skills@firebase-basics", "description": "Firebase integration for agents"}]
         )
         assert "all" in result
         assert len(result["all"]) == 2

@@ -44,7 +44,7 @@ Rules:
 - Limit to top 6 total across installed and uninstalled
 - Sort by score descending (highest first)
 - For installed tools: "installed": true, no install_cmd
-- For uninstalled (registry) tools: "installed": false, include install_cmd using the exact skill ID
+- For uninstalled registry tools: use the "id" field as the tool name in your response; "installed": false; include install_cmd using the exact id
 - Write specific reasons grounded in what the developer is actually doing
 - If nothing is relevant, return {"all": []}
 """
@@ -113,38 +113,70 @@ def strip_ansi(text: str) -> str:
     return re.sub(r'\x1b\[[0-9;]*[A-Za-z]', '', text)
 
 
-def search_registry(task_type: str, limit: int = 5) -> list:
-    """Search skills.sh registry for task-type matches. Cached per primary term for 1 hour."""
-    primary = task_type.split("-")[0]
+def _search_one_term(term: str, limit: int = 5) -> list:
+    """Search registry for one term. Returns list of {"id", "description"}. Cached 1hr."""
     cache = _load_cache()
     registry = cache.get("registry", {})
-    entry = registry.get(primary, {})
-    if entry and (time.time() - entry.get("fetched_at", 0)) < CACHE_TTL:
-        return entry["data"]
+    entry = registry.get(term, {})
+    cached_data = entry.get("data", [])
+    # Only use cache if fresh AND data is in new dict format (not legacy bare strings)
+    if (entry
+            and (time.time() - entry.get("fetched_at", 0)) < CACHE_TTL
+            and (not cached_data or isinstance(cached_data[0], dict))):
+        return cached_data
     try:
         result = subprocess.run(
-            ["npx", "--yes", "skills", "find", primary],
+            ["npx", "--yes", "skills", "find", term],
             capture_output=True, text=True, timeout=6, check=False
         )
         lines = result.stdout.split("\n")
         skills = []
         for line in lines:
             stripped = strip_ansi(line).strip()
-            # Skill identifiers look like "owner/repo@skill-name"
-            if "@" in stripped and "/" in stripped and not stripped.startswith("http") and not stripped.startswith("└"):
-                parts = stripped.split()
-                if parts:
-                    skill_id = parts[0]
-                    if "/" in skill_id and "@" in skill_id:
-                        skills.append(skill_id)
+            if "@" not in stripped or "/" not in stripped:
+                continue
+            if stripped.startswith("http") or stripped.startswith("└"):
+                continue
+            parts = stripped.split()
+            if not parts:
+                continue
+            skill_id = parts[0]
+            if "/" in skill_id and "@" in skill_id:
+                description = " ".join(parts[1:]) if len(parts) > 1 else ""
+                skills.append({"id": skill_id, "description": description})
         skills = skills[:limit]
         if "registry" not in cache:
             cache["registry"] = {}
-        cache["registry"][primary] = {"data": skills, "fetched_at": time.time()}
+        cache["registry"][term] = {"data": skills, "fetched_at": time.time()}
         _save_cache(cache)
         return skills
     except Exception:
         return entry.get("data", [])
+
+
+def search_registry(task_type: str, limit: int = 5) -> list:
+    """Search skills.sh for all terms in compound task type. Returns list of {"id", "description"}.
+
+    For "docker-aws-github-actions", searches "docker", "aws", "github" separately (up to 3 unique terms).
+    Results are deduplicated; first match wins.
+    """
+    terms = task_type.split("-")
+    seen_terms = []
+    for t in terms:
+        if t not in seen_terms:
+            seen_terms.append(t)
+    seen_terms = seen_terms[:3]
+
+    seen_ids = set()
+    results = []
+    for term in seen_terms:
+        for skill in _search_one_term(term, limit):
+            if skill["id"] not in seen_ids:
+                seen_ids.add(skill["id"])
+                results.append(skill)
+        if len(results) >= limit:
+            break
+    return results[:limit]
 
 
 def rank_recommendations(
@@ -163,6 +195,14 @@ def rank_recommendations(
 
         context_line = f"\nUser's current message: \"{context_snippet[:200]}\"" if context_snippet else ""
 
+        # Format registry results: handle both {id, description} dicts and legacy bare strings
+        registry_formatted = []
+        for r in registry_results:
+            if isinstance(r, dict):
+                registry_formatted.append({"id": r["id"], "desc": r.get("description", "")[:200]})
+            else:
+                registry_formatted.append({"id": r, "desc": ""})
+
         user_content = f"""Developer is working on: {task_type}{context_line}
 
 Installed plugins ({len(installed_plugins)}):
@@ -172,7 +212,7 @@ Installed skills:
 {json.dumps(installed_skills, indent=2)}
 
 Available from registry (not installed):
-{json.dumps(registry_results, indent=2)}
+{json.dumps(registry_formatted, indent=2)}
 
 Rank ALL relevant tools collectively for a {task_type} task."""
 
