@@ -147,26 +147,26 @@ The `anthropic` Python package installs automatically via `install.sh`.
 
 ## Cost
 
-**Hosted (recommended):** Free for 8 detections/day. Upgrade for unlimited at **$6/month** → [dispatch.visionairy.biz/pro](https://dispatch.visionairy.biz/pro)
+**Hosted (recommended):** Free for 5 detections/day. Upgrade for unlimited + Sonnet-quality ranking at **$10/month** → [dispatch.visionairy.biz/pro](https://dispatch.visionairy.biz/pro)
 
 The hosted version is more than convenience — it's collective intelligence. Every session across every user improves what gets recommended for your stack. BYOK runs the same algorithm in isolation; hosted runs it with the benefit of aggregate signal from the whole community.
 
 New tools added to the skills registry are picked up automatically. You don't update Dispatch — Dispatch updates itself.
 
-**Pro subscribers get more than unlimited detections.** As Dispatch grows, Pro is the tier where new capabilities ship first:
+**Pro subscribers get better recommendations, not just more of them.** Free tier uses Claude Haiku for ranking. Pro uses Claude Sonnet — materially sharper reasons, better scores, fewer irrelevant suggestions. Plus:
 - **Curated registry** — hand-picked, production-tested tool recommendations per stack, vetted by the Dispatch team (live now)
 - **Usage analytics dashboard** — see what task types you shift to most, which tools get recommended, session patterns over time
 - **Weekly digest** — new tools published to your stacks, surfaced before you go looking
-- Every new feature built on top of the usage data gets better the more people use it — and Pro users are the ones feeding that signal
 
-**BYOK (self-hosted):** Runs the raw algorithm with your own Anthropic key. No data sharing, no curated picks, no network effect. Good for privacy-first setups.
+**BYOK (self-hosted):** Runs the full algorithm with your own Anthropic API key (Haiku 4.5). No data sharing, no curated picks, no network effect. Good for privacy-first setups.
 
-| Stage | Trigger | Cost |
-|-------|---------|------|
-| Shift detection | Every message | ~$0.0001 |
-| Plugin ranking | On topic shift only | ~$0.001 |
+| Stage | Trigger | Model | Cost per call |
+|-------|---------|-------|--------------|
+| Shift detection | Every message | Haiku 4.5 | ~$0.000002 |
+| Plugin ranking (free / BYOK) | On shift only | Haiku 4.5 | ~$0.000006 |
+| Plugin ranking (Pro) | On shift only | Sonnet 4.6 | ~$0.000018 |
 
-**Typical session (10 messages, 2-3 topic shifts): less than $0.005.**
+**Typical session (10 messages, 2-3 shifts): less than $0.00005.** BYOK users pay API costs directly at these rates — a full month of heavy daily use costs less than a cent.
 
 ---
 
@@ -340,7 +340,7 @@ You'll always have the self-hosted option with zero data leaving your machine.
 
 Free plan gives you 8 detections/day — enough to evaluate whether Dispatch fits your workflow across multiple sessions.
 
-If it does, [upgrade to Pro for $6/month](https://dispatch.visionairy.biz/pro). Unlimited detections, and you're contributing to the data pool that makes recommendations sharper for everyone. The more Pro users, the better the signal.
+If it does, [upgrade to Pro for $10/month](https://dispatch.visionairy.biz/pro). Unlimited detections + Sonnet-quality ranking, and you're contributing to the data pool that makes recommendations sharper for everyone. The more Pro users, the better the signal.
 
 You can also fork it, run it with your own API key, and never pay a cent. The code is open — the value is in the service. If you'd rather just say thanks, [buy me a coffee](https://github.com/sponsors/VisionAIrySE).
 

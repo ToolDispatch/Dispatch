@@ -169,7 +169,7 @@ except:
     print('https://dispatch.visionairy.biz/pro')
 " "$HTTP_BODY" 2>/dev/null || echo "https://dispatch.visionairy.biz/pro")
         W=52
-        { echo ""; printf '━%.0s' $(seq 1 $W); echo; echo " ${DICON} Dispatch  →  Task shift detected"; printf '━%.0s' $(seq 1 $W); echo; echo " You've used your 5 free detections today."; echo " Upgrade for unlimited — \$6/month → $UPGRADE_URL"; printf '━%.0s' $(seq 1 $W); echo; } >&2
+        { echo ""; printf '━%.0s' $(seq 1 $W); echo; echo " ${DICON} Dispatch  →  Task shift detected"; printf '━%.0s' $(seq 1 $W); echo; echo " You've used your 5 free detections today."; echo " Upgrade for unlimited + Sonnet ranking — \$10/month → $UPGRADE_URL"; printf '━%.0s' $(seq 1 $W); echo; } >&2
         # Set cooldown: suppress for next 5 triggers
         python3 -c "
 import json, sys
