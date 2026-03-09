@@ -7,3 +7,4 @@ registry.json
 npx_cache.json
 *Zone.Identifier
 claude.md
+.worktrees/
