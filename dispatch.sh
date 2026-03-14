@@ -168,7 +168,7 @@ except:
     print('https://dispatch.visionairy.biz/pro')
 " "$HTTP_BODY" 2>/dev/null || echo "https://dispatch.visionairy.biz/pro")
         W=52
-        { echo ""; printf '━%.0s' $(seq 1 $W); echo; echo " ${DICON} Dispatch  →  Task shift detected"; printf '━%.0s' $(seq 1 $W); echo; echo " You've used your 5 free detections today."; echo " Upgrade for unlimited + Sonnet ranking — \$10/month → $UPGRADE_URL"; printf '━%.0s' $(seq 1 $W); echo; } >&2
+        ({ echo ""; printf '━%.0s' $(seq 1 $W); echo; echo " ${DICON} Dispatch  →  Task shift detected"; printf '━%.0s' $(seq 1 $W); echo; echo " You've used your 5 free detections today."; echo " Upgrade for unlimited + Sonnet ranking — \$10/month → $UPGRADE_URL"; printf '━%.0s' $(seq 1 $W); echo; } > /dev/tty) 2>/dev/null || true
         # Set cooldown: suppress for next 5 triggers
         python3 -c "
 import json, sys
@@ -206,7 +206,7 @@ with open(state_file, 'w') as f:
             exit 0
         fi
         W=52
-        { echo ""; printf '━%.0s' $(seq 1 $W); echo; echo " ${DICON} Dispatch  →  Token invalid or expired"; echo " Re-authenticate: $DISPATCH_ENDPOINT/token-lookup"; printf '━%.0s' $(seq 1 $W); echo; } >&2
+        ({ echo ""; printf '━%.0s' $(seq 1 $W); echo; echo " ${DICON} Dispatch  →  Token invalid or expired"; echo " Re-authenticate: $DISPATCH_ENDPOINT/token-lookup"; printf '━%.0s' $(seq 1 $W); echo; } > /dev/tty) 2>/dev/null || true
         python3 -c "
 import json, sys
 from datetime import datetime
