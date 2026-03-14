@@ -6,7 +6,7 @@
 # BYOK mode:    ANTHROPIC_API_KEY set → calls Haiku directly (no token needed)
 #
 # Stage 1: Topic shift detection (~100ms, every message)
-# Stage 2: Plugin evaluation + interactive UI (only on confirmed shift)
+# Stage 2: Store task context for PreToolUse hook (only on confirmed shift)
 # =============================================================================
 
 set -uo pipefail
@@ -18,8 +18,7 @@ CONFIG_FILE="$SKILL_ROUTER_DIR/config.json"
 
 # Ensure tmpfiles are always cleaned up on exit
 CLASSIFY_TMP=""
-RANK_TMP=""
-trap 'rm -f "${CLASSIFY_TMP:-}" "${RANK_TMP:-}" 2>/dev/null' EXIT
+trap 'rm -f "${CLASSIFY_TMP:-}" 2>/dev/null' EXIT
 
 # Extract current prompt from hook JSON — avoids transcript timing lag (CC writes
 # the current message to transcript AFTER the hook fires, not before)
@@ -257,6 +256,25 @@ print(json.loads(sys.argv[1]).get('confidence', 0))
 CONF_OK=$(python3 -c "print('yes' if float('$CONFIDENCE') >= 0.7 else 'no')" 2>/dev/null || echo "no")
 [ "$CONF_OK" != "yes" ] && exit 0
 
+# ── Map task type to category ─────────────────────────────────────────────
+CATEGORY=$(python3 -c "
+import sys
+sys.path.insert(0, sys.argv[1])
+from category_mapper import map_to_category
+result = map_to_category(sys.argv[2])
+print(result if result else 'unknown')
+" "$SKILL_ROUTER_DIR" "$TASK_TYPE" 2>/dev/null || echo "unknown")
+
+# Log unknown categories for future catalog expansion
+if [ "$CATEGORY" = "unknown" ]; then
+    python3 -c "
+import sys
+sys.path.insert(0, sys.argv[1])
+from category_mapper import log_unknown_category
+log_unknown_category(sys.argv[2])
+" "$SKILL_ROUTER_DIR" "$TASK_TYPE" 2>/dev/null || true
+fi
+
 # ── Stage 2: Store state for PreToolUse hook ───────────────────────────────
 # Extract last 3 user messages to build context snippet for preuse_hook.sh
 CONTEXT_SNIPPET=$(python3 -c "
@@ -287,17 +305,18 @@ print(' | '.join(recent))
 python3 -c "
 import json, sys
 from datetime import datetime
-state_file, task_type, context_snippet, cwd = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+state_file, task_type, category, context_snippet, cwd = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5]
 try:
     d = json.load(open(state_file))
 except Exception:
     d = {}
 d['last_task_type'] = task_type
+d['last_category'] = category
 d['last_context_snippet'] = context_snippet
 d['last_cwd'] = cwd
 d['last_updated'] = datetime.now().isoformat()
 with open(state_file, 'w') as f:
     json.dump(d, f)
-" "$STATE_FILE" "$TASK_TYPE" "$CONTEXT_SNIPPET" "$CWD" 2>/dev/null || true
+" "$STATE_FILE" "$TASK_TYPE" "$CATEGORY" "$CONTEXT_SNIPPET" "$CWD" 2>/dev/null || true
 
 exit 0
