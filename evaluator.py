@@ -2,11 +2,9 @@ import json
 import os
 import re
 import subprocess
-import glob
 import time
 import anthropic
 
-PLUGINS_DIR = os.path.expanduser("~/.claude/plugins/marketplaces")
 CACHE_FILE = os.path.expanduser("~/.claude/skill-router/npx_cache.json")
 CACHE_TTL = 3600  # 1 hour
 
@@ -55,101 +53,6 @@ GOOD: "Adds Firestore query helpers relevant to the user authentication flow you
 BAD: "Firebase support for agents." (repeats the tool name, adds nothing)
 Write reasons like the GOOD examples — one sentence, specific to what the developer just said they are doing.
 """
-
-
-def scan_installed_plugins(plugins_dir: str) -> list:
-    """Scan all marketplace plugin.json files and return plugin metadata."""
-    plugins = []
-    if not os.path.isdir(plugins_dir):
-        return []
-    pattern = os.path.join(plugins_dir, "*", "plugins", "*", ".claude-plugin", "plugin.json")
-    for path in glob.glob(pattern):
-        try:
-            with open(path, encoding='utf-8') as f:
-                data = json.load(f)
-                name = data.get("name", "")
-                description = data.get("description", "")
-                if name:
-                    # Extract marketplace name from path: .../marketplaces/{marketplace}/plugins/...
-                    parts = path.replace("\\", "/").split("/")
-                    try:
-                        mp_idx = parts.index("marketplaces")
-                        marketplace = parts[mp_idx + 1]
-                    except (ValueError, IndexError):
-                        marketplace = ""
-                    plugins.append({
-                        "name": name,
-                        "description": description[:200],
-                        "marketplace": marketplace,
-                        "source": "installed"
-                    })
-        except Exception:
-            continue
-    return plugins
-
-
-def scan_mcp_servers(cwd: str = None) -> list:
-    """Scan .mcp.json files for installed MCP servers. Returns [{name, description, source, marketplace}]."""
-    paths = [os.path.expanduser("~/.claude/.mcp.json")]
-    if cwd:
-        paths.append(os.path.join(cwd, ".mcp.json"))
-
-    servers = []
-    seen = set()
-    for path in paths:
-        try:
-            with open(path) as f:
-                data = json.load(f)
-            for name, config in data.get("mcpServers", {}).items():
-                if name not in seen:
-                    seen.add(name)
-                    description = config.get("description", f"MCP server providing {name} integration")
-                    servers.append({
-                        "name": name,
-                        "description": description,
-                        "source": "mcp",
-                        "marketplace": "mcp"
-                    })
-        except Exception:
-            continue
-    return servers
-
-
-def get_installed_skills() -> list:
-    """Get list of installed agent skills via npx skills list. Cached for 1 hour."""
-    cache = _load_cache()
-    entry = cache.get("installed_skills", {})
-    cached_data = entry.get("data", [])
-    if entry and (time.time() - entry.get("fetched_at", 0)) < CACHE_TTL:
-        # Guard: if cached data is legacy bare strings, treat as expired
-        if not cached_data or isinstance(cached_data[0], dict):
-            return cached_data
-    try:
-        result = subprocess.run(
-            ["npx", "--yes", "skills", "list", "-g"],
-            capture_output=True, text=True, timeout=6, check=False
-        )
-        if result.returncode != 0:
-            return entry.get("data", [])
-        lines = result.stdout.strip().split("\n")
-        cleaned = []
-        for line in lines:
-            stripped = strip_ansi(line).strip()
-            if not stripped or stripped.startswith("No "):
-                continue
-            parts = stripped.split()
-            if not parts:
-                continue
-            skill_id = parts[0]
-            # Skill IDs contain hyphens and no spaces; exclude registry-style "owner/repo@skill"
-            if "-" in skill_id and "/" not in skill_id:
-                description = " ".join(parts[1:]) if len(parts) > 1 else ""
-                cleaned.append({"id": skill_id, "description": description})
-        cache["installed_skills"] = {"data": cleaned, "fetched_at": time.time()}
-        _save_cache(cache)
-        return cleaned
-    except Exception:
-        return entry.get("data", [])
 
 
 def strip_ansi(text: str) -> str:
@@ -302,7 +205,10 @@ Rank ALL relevant tools collectively for a {task_type} task."""
 
 
 def build_recommendation_list(task_type: str, installed_plugins: list = None, installed_skills: list = None, context_snippet: str = None, model: str = None) -> dict:
-    """Full evaluation pipeline: scan installed -> search registry -> rank collectively.
+    """Full evaluation pipeline: search registry -> rank collectively.
+
+    In v0.7.0, installed-tool scanning is removed. If installed_plugins/installed_skills are not provided,
+    they default to empty lists.
 
     Returns:
         {
@@ -313,11 +219,9 @@ def build_recommendation_list(task_type: str, installed_plugins: list = None, in
         }
     """
     if installed_plugins is None:
-        installed_plugins = scan_installed_plugins(PLUGINS_DIR)
-        mcp_servers = scan_mcp_servers()
-        installed_plugins = installed_plugins + mcp_servers
+        installed_plugins = []
     if installed_skills is None:
-        installed_skills = get_installed_skills()
+        installed_skills = []
     registry_results = search_registry(task_type)
     result = rank_recommendations(
         task_type=task_type,
