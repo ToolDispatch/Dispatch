@@ -181,13 +181,16 @@ def search_by_category(category_id: str, limit: int = 10) -> list:
 
     seen_ids: set = set()
     results = []
-    for term in cat.get("search_terms", [])[:5]:  # cap at 5 terms per category
-        for skill in _search_one_term(term, limit=5):
-            if skill["id"] not in seen_ids:
-                seen_ids.add(skill["id"])
-                results.append(skill)
-        if len(results) >= limit:
-            break
+    try:
+        for term in cat.get("search_terms", [])[:5]:  # cap at 5 terms per category
+            for skill in _search_one_term(term, limit=5):
+                if skill["id"] not in seen_ids:
+                    seen_ids.add(skill["id"])
+                    results.append(skill)
+            if len(results) >= limit:
+                break
+    except Exception:
+        pass
     return results[:limit]
 
 

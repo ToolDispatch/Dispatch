@@ -379,30 +379,38 @@ class TestSearchByCategory(unittest.TestCase):
 
     def test_returns_list(self):
         from evaluator import search_by_category
-        with patch("evaluator._search_one_term", return_value=[]):
-            result = search_by_category("mobile")
+        mock_cats = [{"id": "mobile", "search_terms": ["flutter", "react-native"]}]
+        with patch("evaluator._load_categories", return_value=mock_cats):
+            with patch("evaluator._search_one_term", return_value=[]):
+                result = search_by_category("mobile")
         assert isinstance(result, list)
 
     def test_unknown_category_id_returns_empty(self):
         from evaluator import search_by_category
-        result = search_by_category("nonexistent-category-xyz")
+        mock_cats = [{"id": "mobile", "search_terms": ["flutter"]}]
+        with patch("evaluator._load_categories", return_value=mock_cats):
+            result = search_by_category("nonexistent-category-xyz")
         assert result == []
 
     def test_searches_category_terms(self):
         from evaluator import search_by_category
+        mock_cats = [{"id": "mobile", "search_terms": ["flutter", "react-native"]}]
         calls = []
         def mock_search(term, limit=5):
             calls.append(term)
             return []
-        with patch("evaluator._search_one_term", side_effect=mock_search):
-            search_by_category("mobile")
-        assert len(calls) > 0
+        with patch("evaluator._load_categories", return_value=mock_cats):
+            with patch("evaluator._search_one_term", side_effect=mock_search):
+                search_by_category("mobile")
+        assert calls == ["flutter", "react-native"]
 
     def test_deduplicates_results(self):
         from evaluator import search_by_category
+        mock_cats = [{"id": "mobile", "search_terms": ["flutter", "react-native"]}]
         duplicate = {"id": "owner/repo@skill", "description": "desc"}
-        with patch("evaluator._search_one_term", return_value=[duplicate]):
-            result = search_by_category("mobile")
+        with patch("evaluator._load_categories", return_value=mock_cats):
+            with patch("evaluator._search_one_term", return_value=[duplicate]):
+                result = search_by_category("mobile")
         ids = [r["id"] for r in result]
         assert len(ids) == len(set(ids))
 
