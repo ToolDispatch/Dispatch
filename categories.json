@@ -32,7 +32,7 @@
   {
     "id": "ai-ml",
     "label": "AI & ML Pipelines",
-    "search_terms": ["langchain", "llamaindex", "openai", "embedding", "rag", "llm", "agent", "ml", "vector-store"],
+    "search_terms": ["langchain", "llamaindex", "openai", "rag", "llm", "agent", "ml", "vector-store"],
     "example_tools": []
   },
   {
@@ -62,7 +62,7 @@
   {
     "id": "data-processing",
     "label": "Data Processing & ETL",
-    "search_terms": ["etl", "pandas", "csv", "transform", "data-processing", "ingestion", "pipeline", "scraping"],
+    "search_terms": ["etl", "pandas", "csv", "transform", "data-processing", "ingestion", "scraping"],
     "example_tools": []
   },
   {
