@@ -56,6 +56,11 @@ chmod +x "$HOOKS_DIR/skill-router.sh"
 cp preuse_hook.sh "$HOOKS_DIR/preuse-hook.sh"
 chmod +x "$HOOKS_DIR/preuse-hook.sh"
 
+# ── Install /dispatch status skill ────────────────────────────────────────
+SKILLS_DIR="$HOME/.claude/skills/dispatch-status"
+mkdir -p "$SKILLS_DIR"
+cp skills/dispatch-status/SKILL.md "$SKILLS_DIR/SKILL.md"
+
 # ── Register hook in settings.json ────────────────────────────────────────
 if [ ! -f "$SETTINGS" ]; then
     echo '{"hooks":{}}' > "$SETTINGS"

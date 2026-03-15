@@ -2,7 +2,7 @@
   "name": "dispatch",
   "display_name": "Dispatch",
   "description": "Runtime skill router for Claude Code. Detects task shifts and surfaces the best plugin, MCP server, or agent skill before you start — so you're always using the right tool.",
-  "version": "0.8.0",
+  "version": "0.9.1",
   "author": {
     "name": "Visionairy",
     "url": "https://visionairy.com",
