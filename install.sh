@@ -18,6 +18,15 @@ echo "Installing Dispatch..."
 if ! python3 -c "import anthropic" 2>/dev/null; then
     echo "Installing anthropic Python package..."
     python3 -m pip install anthropic --quiet --user
+    # Verify — pip exits 0 even when it can't write to site-packages
+    if ! python3 -c "import anthropic" 2>/dev/null; then
+        echo ""
+        echo "  ⚠ anthropic package installed but not importable."
+        echo "    Try:  pip3 install anthropic --break-system-packages"
+        echo "    Or:   pip3 install --user anthropic"
+        echo "    Dispatch will run in degraded mode until this is resolved."
+        echo ""
+    fi
 fi
 
 if ! command -v npx &>/dev/null; then
@@ -36,7 +45,8 @@ cp category_mapper.py "$DISPATCH_DIR/"
 cp categories.json "$DISPATCH_DIR/"
 
 # ── Seed state files ───────────────────────────────────────────────────────
-[ -f "$DISPATCH_DIR/state.json" ] || echo '{"last_task_type":null,"last_updated":null}' > "$DISPATCH_DIR/state.json"
+# first_run=true → dispatch.sh emits one-time "active" confirmation on first message
+[ -f "$DISPATCH_DIR/state.json" ] || echo '{"last_task_type":null,"last_updated":null,"first_run":true}' > "$DISPATCH_DIR/state.json"
 
 # ── Install hook script ────────────────────────────────────────────────────
 cp dispatch.sh "$HOOKS_DIR/skill-router.sh"
@@ -147,10 +157,18 @@ else
     echo ""
     echo " 2. Sign in with GitHub"
     echo " 3. Copy the token shown on screen"
-    echo " 4. Paste it here and press Enter:"
-    echo ""
-    printf "    Token: "
-    read -r USER_TOKEN < /dev/tty
+    # Only prompt if running in an interactive terminal
+    if [ -t 0 ]; then
+        echo " 4. Paste it here and press Enter:"
+        echo ""
+        printf "    Token: "
+        read -r USER_TOKEN
+    else
+        echo " 4. Then add your token:"
+        echo "    echo '{\"endpoint\":\"$DISPATCH_ENDPOINT\",\"token\":\"YOUR_TOKEN\"}' > $CONFIG_FILE"
+        echo ""
+        USER_TOKEN=""
+    fi
 
     if [ -n "$USER_TOKEN" ]; then
         python3 -c "
@@ -171,6 +189,33 @@ fi
 echo ""
 echo "✓ Dispatch installed."
 echo ""
-echo "Next steps:"
-echo "  Start a new Claude Code session — Dispatch fires automatically on topic shifts"
+
+# ── Status summary ─────────────────────────────────────────────────────────
+FINAL_TOKEN=$(python3 -c "
+import json
+try:
+    d = json.load(open('$CONFIG_FILE'))
+    t = d.get('token', '')
+    print(t if t else '')
+except:
+    print('')
+" 2>/dev/null || echo "")
+
+if [ -n "$FINAL_TOKEN" ]; then
+    echo "  Mode:    Hosted  (token: $(echo "$FINAL_TOKEN" | cut -c1-12)...)"
+    echo "  Plan:    Free — 5 detections/day"
+    echo "  Upgrade: $DISPATCH_ENDPOINT/pro  (\$10/month — unlimited + Sonnet)"
+elif [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+    echo "  Mode:    BYOK  (using ANTHROPIC_API_KEY)"
+else
+    echo "  Mode:    ⚠  Inactive — no API key or token configured"
+    echo "  Fix:     export ANTHROPIC_API_KEY=sk-ant-..."
+    echo "           or re-run install.sh after visiting $DISPATCH_ENDPOINT/auth/github"
+fi
+
+echo ""
+echo "  Start a new Claude Code session — Dispatch will confirm it's active"
+echo "  on your first message."
+echo ""
+echo "  Docs:    https://github.com/VisionAIrySE/Dispatch"
 echo ""
