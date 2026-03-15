@@ -181,7 +181,7 @@ def _strip_fences(text: str) -> str:
     """Strip markdown code fences from LLM response."""
     text = text.strip()
     if text.startswith("```"):
-        text = text.split("```")[1]
+        text = text.split("```")[1].lstrip("\n")
         if text.startswith("json"):
             text = text[4:]
         text = text.strip()

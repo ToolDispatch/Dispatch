@@ -80,6 +80,18 @@ class TestComplete(unittest.TestCase):
             result = client.complete(system="sys", user="usr", model="claude-haiku-4-5-20251001")
         assert result == '{"shift": true}'
 
+    def test_complete_strips_fences_with_json_on_newline(self):
+        """Haiku sometimes returns ```\njson\n{...} — json marker on separate line."""
+        from llm_client import LLMClient
+        client = LLMClient(provider="anthropic", api_key="sk-test")
+        mock_response = MagicMock()
+        mock_response.content = [MagicMock(text='```\njson\n{"shift": true}\n```')]
+        with patch("anthropic.Anthropic") as MockAnthropic:
+            MockAnthropic.return_value.messages.create.return_value = mock_response
+            client._anthropic_client = MockAnthropic.return_value
+            result = client.complete(system="sys", user="usr", model="claude-haiku-4-5-20251001")
+        assert result == '{"shift": true}'
+
     def test_complete_returns_empty_on_exception(self):
         from llm_client import LLMClient
         client = LLMClient(provider="anthropic", api_key="sk-test")
