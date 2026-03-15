@@ -157,6 +157,37 @@ from interceptor import get_category
 print(get_category())
 " "$SKILL_ROUTER_DIR" 2>/dev/null || echo "unknown")
 
+# ── Check conversion: did user install our last suggested tool? ────────────
+if [ -n "$DISPATCH_TOKEN" ]; then
+    CONVERTED=$(python3 -c "
+import sys
+sys.path.insert(0, sys.argv[1])
+from interceptor import check_conversion, clear_last_suggested
+if check_conversion([sys.argv[2]]):
+    clear_last_suggested()
+    print('yes')
+else:
+    print('no')
+" "$SKILL_ROUTER_DIR" "$CC_TOOL" 2>/dev/null || echo "no")
+    if [ "$CONVERTED" = "yes" ]; then
+        CONV_BODY=$(python3 -c "
+import json, sys
+print(json.dumps({
+    'task_type': sys.argv[1],
+    'category_id': sys.argv[2],
+    'tool_suggested': sys.argv[3],
+    'was_blocked': False,
+    'was_installed': True,
+}))
+" "$TASK_TYPE" "$CATEGORY" "$CC_TOOL" 2>/dev/null || echo "{}")
+        curl -s -X POST "$DISPATCH_ENDPOINT/api/detections" \
+            -H "Authorization: Bearer $DISPATCH_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data "$CONV_BODY" \
+            --max-time 2 >/dev/null 2>&1 &
+    fi
+fi
+
 # ── Evaluate marketplace alternatives ─────────────────────────────────────
 RANK_TMP=$(mktemp)
 trap 'rm -f "${RANK_TMP:-}" 2>/dev/null' EXIT
@@ -256,6 +287,14 @@ sys.path.insert(0, sys.argv[1])
 from interceptor import write_bypass
 write_bypass(sys.argv[2])
 " "$SKILL_ROUTER_DIR" "$TOOL_NAME" 2>/dev/null || true
+
+# ── Record last suggested tool for conversion tracking ────────────────────
+python3 -c "
+import sys
+sys.path.insert(0, sys.argv[1])
+from interceptor import write_last_suggested
+write_last_suggested(sys.argv[2])
+" "$SKILL_ROUTER_DIR" "$TOP_TOOL_NAME" 2>/dev/null || true
 
 # ── Render comparison output — exit 2 blocks the tool call ────────────────
 python3 - "$CC_TOOL" "$RECOMMENDATIONS" "$TASK_TYPE" <<'PYEOF'
