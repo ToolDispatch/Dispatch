@@ -244,7 +244,23 @@ Then remove the `UserPromptSubmit` and `PreToolUse` entries from `~/.claude/sett
 
 **BYOK:** Haiku calls go directly from your machine to Anthropic. Nothing passes through our servers.
 
-**Hosted:** Your last ~3 messages and working directory are sent to dispatch.visionairy.biz for classification. We pass this to Haiku and discard it — we don't store conversation content. We store: GitHub username, email, usage count, and task type labels. We don't sell individual data. Aggregate patterns may improve recommendations in anonymized form. You can switch to BYOK mode at any time for zero data sharing.
+**Hosted (Free and Pro):** The following data is sent to and stored at dispatch.visionairy.biz:
+
+| Data | Stored? | Notes |
+|------|---------|-------|
+| Last ~3 messages | **No** | Sent for classification, discarded immediately |
+| Working directory path | **No** | Sent for context, not stored |
+| GitHub username + email | **Yes** | Collected via GitHub OAuth at signup |
+| Task type label (e.g. `flutter-fixing`) | **Yes** | Stored per interception event |
+| Tool intercepted + relevance scores | **Yes** | Tool name, CC score, marketplace score |
+| Blocked / bypassed / installed | **Yes** | Powers your Pro dashboard |
+| Stack profile (languages/frameworks) | **Local only** | Stored in `~/.claude/skill-router/stack_profile.json` |
+
+We don't store conversation content. We don't sell individual user data. Aggregate, anonymized patterns (e.g. what percentage of mobile developers install Flutter skills after a Dispatch suggestion) improve catalog rankings network-wide.
+
+**Creator outreach:** When the daily catalog crawl finds a skill with install activity but no description, Dispatch may open a GitHub issue on that repo asking the creator to add a description. At most once per repo per 30 days. Issues include a note that the creator can close with no action required.
+
+To delete your account and all stored data, email dispatch@visionairy.biz. To stop all data sharing immediately, switch to BYOK mode.
 
 ---
 
@@ -278,9 +294,13 @@ Built by [Visionairy](https://visionairy.biz). If you're getting serious about A
 - [x] Hosted endpoint (dispatch.visionairy.biz)
 - [x] PreToolUse interception — blocks on 10+ point gap
 - [x] Category-first routing — 16 MECE categories
-- [x] Pre-ranked catalog — daily cron, <200ms Pro responses
+- [x] Pre-ranked catalog — daily cron, signal-scored (installs/stars/forks/freshness)
 - [x] Stack detection — auto-detects languages/frameworks from manifest files
-- [x] Pro dashboard — interception history, block rate, quota
+- [x] Pro dashboard — interception history, block rate, install conversions, quota
+- [x] Install conversion tracking — detects when users install suggested tools
+- [x] Creator outreach — GitHub issues for undescribed skills (max 1/repo/month)
+- [x] Slack notifications — signup, upgrade, conversion, daily digest, cron completion
 - [ ] `/dispatch status` command
 - [ ] skills.sh distribution (`npx skills add VisionAIrySE/Dispatch`)
-- [ ] Weekly new-tool digest for Pro users
+- [ ] Weekly new-tool digest email for Pro users
+- [ ] Aggregate insights API (category trends, CC gap analysis)

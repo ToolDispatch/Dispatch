@@ -264,13 +264,23 @@ except:
 " "$RECOMMENDATIONS" 2>/dev/null || echo "")
     DETECTION_BODY=$(python3 -c "
 import json, sys
+try:
+    r = json.loads(sys.argv[1])
+    tools = r.get('all', [])
+    top_score = tools[0].get('score', 0) if tools else 0
+    cc_score = int(r.get('cc_score', 0))
+except:
+    top_score = 0
+    cc_score = 0
 print(json.dumps({
-    'task_type': sys.argv[1],
-    'category_id': sys.argv[2],
-    'tool_suggested': sys.argv[3],
-    'was_blocked': sys.argv[4] == 'yes',
+    'task_type': sys.argv[2],
+    'category_id': sys.argv[3],
+    'tool_suggested': sys.argv[4],
+    'was_blocked': sys.argv[5] == 'yes',
+    'cc_score': cc_score,
+    'top_pick_score': top_score,
 }))
-" "$TASK_TYPE" "$CATEGORY" "$TOP_TOOL_NAME" "$SHOULD_BLOCK" 2>/dev/null || echo "{}")
+" "$RECOMMENDATIONS" "$TASK_TYPE" "$CATEGORY" "$TOP_TOOL_NAME" "$SHOULD_BLOCK" 2>/dev/null || echo "{}")
     curl -s -X POST "$DISPATCH_ENDPOINT/api/detections" \
         -H "Authorization: Bearer $DISPATCH_TOKEN" \
         -H "Content-Type: application/json" \
