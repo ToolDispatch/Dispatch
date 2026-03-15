@@ -42,6 +42,8 @@ cp classifier.py "$DISPATCH_DIR/"
 cp evaluator.py "$DISPATCH_DIR/"
 cp interceptor.py "$DISPATCH_DIR/"
 cp category_mapper.py "$DISPATCH_DIR/"
+cp llm_client.py "$DISPATCH_DIR/"
+cp stack_scanner.py "$DISPATCH_DIR/"
 cp categories.json "$DISPATCH_DIR/"
 
 # ── Seed state files ───────────────────────────────────────────────────────
@@ -202,9 +204,10 @@ except:
 " 2>/dev/null || echo "")
 
 if [ -n "$FINAL_TOKEN" ]; then
-    echo "  Mode:    Hosted  (token: $(echo "$FINAL_TOKEN" | cut -c1-12)...)"
-    echo "  Plan:    Free — 5 detections/day"
-    echo "  Upgrade: $DISPATCH_ENDPOINT/pro  (\$10/month — unlimited + Sonnet)"
+    echo "  Mode:      Hosted  (token: $(echo "$FINAL_TOKEN" | cut -c1-12)...)"
+    echo "  Plan:      Free — 5 detections/day"
+    echo "  Upgrade:   $DISPATCH_ENDPOINT/pro  (\$10/month — unlimited + Sonnet)"
+    echo "  Dashboard: $DISPATCH_ENDPOINT/dashboard?token=$FINAL_TOKEN"
 elif [ -n "${ANTHROPIC_API_KEY:-}" ]; then
     echo "  Mode:    BYOK  (using ANTHROPIC_API_KEY)"
 else
