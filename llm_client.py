@@ -8,7 +8,7 @@ Never raises — returns empty string on any failure.
 import json
 import os
 
-CONFIG_FILE = os.path.expanduser("~/.claude/skill-router/config.json")
+CONFIG_FILE = os.path.expanduser("~/.claude/dispatch/config.json")
 
 FREE_CLASSIFIER_MODEL = "meta-llama/llama-3.1-8b-instruct:free"
 FREE_RANKER_MODEL = "meta-llama/llama-3.1-8b-instruct:free"
@@ -16,7 +16,7 @@ OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 
 def load_config(config_file: str = None) -> dict:
-    """Load skill-router config.json. Returns {} on any failure."""
+    """Load Dispatch config.json. Returns {} on any failure."""
     path = config_file or CONFIG_FILE
     try:
         with open(path) as f:

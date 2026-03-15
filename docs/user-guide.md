@@ -162,7 +162,7 @@ Working correctly. Dispatch only blocks when a marketplace alternative scores 10
 
 **I'm getting too many intercepts**
 
-Say `skip dispatch` to suppress for the rest of the session. Or increase the gap threshold by editing `SCORE_GAP_THRESHOLD` in `~/.claude/hooks/preuse-hook.sh` (default: 10).
+Say `skip dispatch` to suppress for the rest of the session. Or increase the gap threshold by editing `SCORE_GAP_THRESHOLD` in `~/.claude/hooks/dispatch-preuse.sh` (default: 10).
 
 **Slow intercepts (2–4 seconds)**
 
@@ -183,9 +183,9 @@ Go to `https://dispatch.visionairy.biz/token-lookup` — signs you in with GitHu
 **Want to uninstall**
 
 ```bash
-rm -rf ~/.claude/skill-router
-rm ~/.claude/hooks/skill-router.sh
-rm ~/.claude/hooks/preuse-hook.sh
+rm -rf ~/.claude/dispatch
+rm ~/.claude/hooks/dispatch.sh
+rm ~/.claude/hooks/dispatch-preuse.sh
 ```
 
 Then remove the `UserPromptSubmit` and `PreToolUse` hook entries from `~/.claude/settings.json`.

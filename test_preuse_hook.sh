@@ -16,10 +16,10 @@
 
 set -euo pipefail
 
-HOOK="$HOME/.claude/hooks/preuse-hook.sh"
-STATE="$HOME/.claude/skill-router/state.json"
-CONFIG="$HOME/.claude/skill-router/config.json"
-SKILL_DIR="$HOME/.claude/skill-router"
+HOOK="$HOME/.claude/hooks/dispatch-preuse.sh"
+STATE="$HOME/.claude/dispatch/state.json"
+CONFIG="$HOME/.claude/dispatch/config.json"
+SKILL_DIR="$HOME/.claude/dispatch"
 
 STATE_BAK="${STATE}.testbak"
 CONFIG_BAK="${CONFIG}.testbak"

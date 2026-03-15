@@ -4,7 +4,7 @@ import time
 from typing import Optional
 
 CATEGORIES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "categories.json")
-UNKNOWN_LOG_FILE = os.path.expanduser("~/.claude/skill-router/unknown_categories.jsonl")
+UNKNOWN_LOG_FILE = os.path.expanduser("~/.claude/dispatch/unknown_categories.jsonl")
 
 
 def load_categories() -> list:

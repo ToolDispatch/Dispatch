@@ -11,7 +11,7 @@ try:
 except ImportError:
     _load_categories = None
 
-CACHE_FILE = os.path.expanduser("~/.claude/skill-router/npx_cache.json")
+CACHE_FILE = os.path.expanduser("~/.claude/dispatch/npx_cache.json")
 CACHE_TTL = 3600  # 1 hour
 
 

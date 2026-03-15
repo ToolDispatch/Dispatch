@@ -11,11 +11,11 @@ license: MIT
 hooks:
   UserPromptSubmit:
     - type: command
-      command: bash ~/.claude/hooks/skill-router.sh
+      command: bash ~/.claude/hooks/dispatch.sh
       timeout_ms: 10000
   PreToolUse:
     - type: command
-      command: bash ~/.claude/hooks/preuse-hook.sh
+      command: bash ~/.claude/hooks/dispatch-preuse.sh
       timeout_ms: 10000
 metadata:
   author: VisionAIrySE

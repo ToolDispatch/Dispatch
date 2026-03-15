@@ -14,7 +14,7 @@
 set -uo pipefail
 
 read -r -t 5 HOOK_INPUT || true
-SKILL_ROUTER_DIR="${HOME}/.claude/skill-router"
+SKILL_ROUTER_DIR="${HOME}/.claude/dispatch"
 CONFIG_FILE="$SKILL_ROUTER_DIR/config.json"
 
 THRESHOLD=10   # minimum score gap above cc_score to block

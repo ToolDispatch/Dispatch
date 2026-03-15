@@ -10,7 +10,7 @@ python3 - << 'PYEOF'
 import json, os, sys
 from datetime import datetime, timezone
 
-d = os.path.expanduser("~/.claude/skill-router")
+d = os.path.expanduser("~/.claude/dispatch")
 
 def read_json(path):
     try:
@@ -38,8 +38,8 @@ if bypass:
     if exp > datetime.now(timezone.utc).timestamp():
         bypass_status = "active (proceed typed)"
 
-hook1 = os.path.expanduser("~/.claude/hooks/skill-router.sh")
-hook2 = os.path.expanduser("~/.claude/hooks/preuse-hook.sh")
+hook1 = os.path.expanduser("~/.claude/hooks/dispatch.sh")
+hook2 = os.path.expanduser("~/.claude/hooks/dispatch-preuse.sh")
 h1 = "installed" if os.path.exists(hook1) else "MISSING"
 h2 = "installed" if os.path.exists(hook2) else "MISSING"
 

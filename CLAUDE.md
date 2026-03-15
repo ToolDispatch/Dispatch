@@ -57,10 +57,10 @@ Two-hook pipeline:
 | `test_interceptor.py` | 22 unit tests for interceptor |
 | `test_category_mapper.py` | 13 unit tests for category_mapper |
 
-**Installed location:** `~/.claude/skill-router/` (classifier.py, evaluator.py, interceptor.py, category_mapper.py, categories.json)
-**Hook 1:** `~/.claude/hooks/skill-router.sh` (UserPromptSubmit)
-**Hook 2:** `~/.claude/hooks/preuse-hook.sh` (PreToolUse)
-**State:** `~/.claude/skill-router/state.json`
+**Installed location:** `~/.claude/dispatch/` (classifier.py, evaluator.py, interceptor.py, category_mapper.py, categories.json)
+**Hook 1:** `~/.claude/hooks/dispatch.sh` (UserPromptSubmit)
+**Hook 2:** `~/.claude/hooks/dispatch-preuse.sh` (PreToolUse)
+**State:** `~/.claude/dispatch/state.json`
 
 ---
 
@@ -120,9 +120,9 @@ ANTHROPIC_API_KEY=sk-ant-... python3 classifier.py \
 
 After editing source files, sync to installed location:
 ```bash
-cp classifier.py evaluator.py interceptor.py category_mapper.py categories.json ~/.claude/skill-router/
-cp dispatch.sh ~/.claude/hooks/skill-router.sh
-cp preuse_hook.sh ~/.claude/hooks/preuse-hook.sh
+cp classifier.py evaluator.py interceptor.py category_mapper.py categories.json ~/.claude/dispatch/
+cp dispatch.sh ~/.claude/hooks/dispatch.sh
+cp preuse_hook.sh ~/.claude/hooks/dispatch-preuse.sh
 ```
 
 install.sh handles this automatically for fresh installs.

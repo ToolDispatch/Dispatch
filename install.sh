@@ -6,7 +6,7 @@
 
 set -euo pipefail
 
-DISPATCH_DIR="$HOME/.claude/skill-router"
+DISPATCH_DIR="$HOME/.claude/dispatch"
 HOOKS_DIR="$HOME/.claude/hooks"
 SETTINGS="$HOME/.claude/settings.json"
 CONFIG_FILE="$DISPATCH_DIR/config.json"
@@ -51,10 +51,10 @@ cp categories.json "$DISPATCH_DIR/"
 [ -f "$DISPATCH_DIR/state.json" ] || echo '{"last_task_type":null,"last_updated":null,"first_run":true}' > "$DISPATCH_DIR/state.json"
 
 # ── Install hook script ────────────────────────────────────────────────────
-cp dispatch.sh "$HOOKS_DIR/skill-router.sh"
-chmod +x "$HOOKS_DIR/skill-router.sh"
-cp preuse_hook.sh "$HOOKS_DIR/preuse-hook.sh"
-chmod +x "$HOOKS_DIR/preuse-hook.sh"
+cp dispatch.sh "$HOOKS_DIR/dispatch.sh"
+chmod +x "$HOOKS_DIR/dispatch.sh"
+cp preuse_hook.sh "$HOOKS_DIR/dispatch-preuse.sh"
+chmod +x "$HOOKS_DIR/dispatch-preuse.sh"
 
 # ── Install /dispatch status skill ────────────────────────────────────────
 SKILLS_DIR="$HOME/.claude/skills/dispatch-status"
@@ -70,7 +70,7 @@ python3 - <<PYEOF
 import json, sys
 
 settings_path = "$SETTINGS"
-hook_cmd = "bash $HOOKS_DIR/skill-router.sh"
+hook_cmd = "bash $HOOKS_DIR/dispatch.sh"
 
 try:
     with open(settings_path) as f:
@@ -104,7 +104,7 @@ python3 - <<PYEOF
 import json, sys
 
 settings_path = "$SETTINGS"
-hook_cmd = "bash $HOOKS_DIR/preuse-hook.sh"
+hook_cmd = "bash $HOOKS_DIR/dispatch-preuse.sh"
 
 try:
     with open(settings_path) as f:

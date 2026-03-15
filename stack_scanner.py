@@ -10,7 +10,7 @@ import os
 import signal
 from datetime import datetime, timezone
 
-STACK_FILE = os.path.expanduser("~/.claude/skill-router/stack_profile.json")
+STACK_FILE = os.path.expanduser("~/.claude/dispatch/stack_profile.json")
 
 MANIFEST_LANGUAGES = {
     "package.json":     "javascript",

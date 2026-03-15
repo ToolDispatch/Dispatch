@@ -185,7 +185,7 @@ The more skills in the registry that match your work, the more often Dispatch ha
 
 Dispatch uses 16 MECE categories to route marketplace searches — things like `mobile-development`, `frontend-web`, `devops-infra`, `data-science`. When Haiku detects a shift, it generates a specific task type label like `flutter-fixing` or `nextjs-building`, then maps that label to a category. The category drives the marketplace search, which is more targeted than keyword-splitting the task type directly.
 
-Unknown task types are logged to `unknown_categories.jsonl` in the skill-router directory — if you're working in a niche stack and Dispatch consistently misses, that file tells you why.
+Unknown task types are logged to `unknown_categories.jsonl` in the dispatch directory — if you're working in a niche stack and Dispatch consistently misses, that file tells you why.
 
 ---
 
@@ -193,7 +193,7 @@ Unknown task types are logged to `unknown_categories.jsonl` in the skill-router 
 
 On install, and again whenever you change working directories, Dispatch scans your project's manifest files (`package.json`, `requirements.txt`, `go.mod`, `Cargo.toml`, `pubspec.yaml`, etc.) to build a stack profile. Pro users' catalog results are reranked using this profile — a Flutter project gets `flutter-mobile-app-dev` ranked higher than a generic mobile tool even if their base scores are similar.
 
-The stack profile lives at `~/.claude/skill-router/stack_profile.json` and updates automatically.
+The stack profile lives at `~/.claude/dispatch/stack_profile.json` and updates automatically.
 
 ---
 
@@ -202,7 +202,7 @@ The stack profile lives at `~/.claude/skill-router/stack_profile.json` and updat
 **Dispatch isn't intercepting anything**
 - Start a **new** Claude Code session after install — hooks load at startup
 - Check both hooks are registered: look for `UserPromptSubmit` and `PreToolUse` entries in `~/.claude/settings.json`
-- Verify your key or token: `cat ~/.claude/skill-router/config.json`
+- Verify your key or token: `cat ~/.claude/dispatch/config.json`
 
 **Dispatch fires but passes everything through**
 - This is correct behavior most of the time — it only blocks when the gap is 10+ points
@@ -221,9 +221,9 @@ The stack profile lives at `~/.claude/skill-router/stack_profile.json` and updat
 ## Uninstall
 
 ```bash
-rm -rf ~/.claude/skill-router
-rm ~/.claude/hooks/skill-router.sh
-rm ~/.claude/hooks/preuse-hook.sh
+rm -rf ~/.claude/dispatch
+rm ~/.claude/hooks/dispatch.sh
+rm ~/.claude/hooks/dispatch-preuse.sh
 ```
 
 Then remove the `UserPromptSubmit` and `PreToolUse` entries from `~/.claude/settings.json`.
@@ -254,7 +254,7 @@ Then remove the `UserPromptSubmit` and `PreToolUse` entries from `~/.claude/sett
 | Task type label (e.g. `flutter-fixing`) | **Yes** | Stored per interception event |
 | Tool intercepted + relevance scores | **Yes** | Tool name, CC score, marketplace score |
 | Blocked / bypassed / installed | **Yes** | Powers your Pro dashboard |
-| Stack profile (languages/frameworks) | **Local only** | Stored in `~/.claude/skill-router/stack_profile.json` |
+| Stack profile (languages/frameworks) | **Local only** | Stored in `~/.claude/dispatch/stack_profile.json` |
 
 We don't store conversation content. We don't sell individual user data. Aggregate, anonymized patterns (e.g. what percentage of mobile developers install Flutter skills after a Dispatch suggestion) improve catalog rankings network-wide.
 

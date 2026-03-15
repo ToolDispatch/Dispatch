@@ -3,8 +3,8 @@ import os
 import tempfile
 import time
 
-STATE_FILE = os.path.expanduser("~/.claude/skill-router/state.json")
-SEEN_ALERTS_FILE = os.path.expanduser("~/.claude/skill-router/seen_alerts.json")
+STATE_FILE = os.path.expanduser("~/.claude/dispatch/state.json")
+SEEN_ALERTS_FILE = os.path.expanduser("~/.claude/dispatch/seen_alerts.json")
 BYPASS_TTL = 120  # seconds a bypass token stays valid
 ALERT_MIN_SCORE = 80
 
