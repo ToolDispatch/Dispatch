@@ -1,0 +1,50 @@
+{
+  "name": "dispatch",
+  "display_name": "Dispatch",
+  "description": "Runtime skill router for Claude Code. Detects task shifts and surfaces the best plugin, MCP server, or agent skill before you start — so you're always using the right tool.",
+  "version": "0.8.0",
+  "author": {
+    "name": "Visionairy",
+    "url": "https://visionairy.com",
+    "email": "russ@visionairy.com"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/VisionAIrySE/Dispatch",
+  "homepage": "https://dispatch.visionairy.biz",
+  "icon": "../Dispatch Icon.png",
+  "keywords": [
+    "hooks",
+    "skill-router",
+    "plugin-discovery",
+    "mcp",
+    "productivity",
+    "developer-tools",
+    "task-detection"
+  ],
+  "install": {
+    "type": "script",
+    "command": "bash install.sh"
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "type": "command",
+        "command": "bash ~/.claude/hooks/skill-router.sh",
+        "timeout_ms": 10000
+      }
+    ],
+    "PreToolUse": [
+      {
+        "type": "command",
+        "command": "bash ~/.claude/hooks/preuse-hook.sh",
+        "timeout_ms": 10000
+      }
+    ]
+  },
+  "requirements": {
+    "python": ">=3.8",
+    "node": ">=18"
+  },
+  "screenshots": [],
+  "categories": ["productivity", "developer-tools", "ai-tools"]
+}

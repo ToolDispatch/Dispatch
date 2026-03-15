@@ -1,0 +1,34 @@
+{
+  "name": "@visionairy/dispatch",
+  "version": "0.8.0",
+  "description": "Runtime skill router for Claude Code — automatically surfaces the best plugin, MCP server, or skill before every task",
+  "keywords": [
+    "claude-code",
+    "claude",
+    "ai",
+    "plugin-router",
+    "mcp",
+    "skills",
+    "developer-tools",
+    "productivity"
+  ],
+  "homepage": "https://dispatch.visionairy.biz",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/VisionAIrySE/Dispatch.git"
+  },
+  "bugs": {
+    "url": "https://github.com/VisionAIrySE/Dispatch/issues"
+  },
+  "license": "MIT",
+  "author": "Russ Wright <russ@visionairy.com> (https://visionairy.com)",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "install-hook": "bash install.sh",
+    "test": "python3 -m pytest test_classifier.py test_evaluator.py test_interceptor.py test_category_mapper.py -v",
+    "test:hook": "bash test_hook.sh all",
+    "test:preuse": "bash test_preuse_hook.sh all"
+  }
+}

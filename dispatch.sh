@@ -30,6 +30,41 @@ CURRENT_WORD_COUNT=$(echo "$CURRENT_PROMPT" | wc -w)
 # Brand icon: blue ◎ (U+25CE) via ANSI — radar sweep target in terminal
 DICON=$'\033[94m◎\033[0m'
 
+# notify MSG — write to /dev/tty if available, else stdout (CC injects into context)
+notify() {
+    if [ -w /dev/tty ] 2>/dev/null; then
+        printf '%s\n' "$1" > /dev/tty 2>/dev/null || printf '%s\n' "$1"
+    else
+        printf '%s\n' "$1"
+    fi
+}
+
+# ── First-run confirmation (one-time) ─────────────────────────────────────
+# Outputs to stdout on first message after install so Claude confirms Dispatch is active.
+# CC injects stdout into context — Claude will mention it in its response naturally.
+FIRST_RUN=$(python3 -c "
+import json
+try:
+    d = json.load(open('$STATE_FILE'))
+    print('yes' if d.get('first_run') else 'no')
+except:
+    print('no')
+" 2>/dev/null || echo "no")
+
+if [ "$FIRST_RUN" = "yes" ]; then
+    python3 -c "
+import json
+try:
+    d = json.load(open('$STATE_FILE'))
+except:
+    d = {}
+d['first_run'] = False
+with open('$STATE_FILE', 'w') as f:
+    json.dump(d, f)
+" 2>/dev/null || true
+    echo "[Dispatch is active and monitoring your session. It will surface better tools when it detects a task shift. No action needed — it runs silently in the background.]"
+fi
+
 # ── Load hosted config (token + endpoint) ─────────────────────────────────
 DISPATCH_TOKEN=$(python3 -c "
 import json
@@ -168,7 +203,14 @@ except:
     print('https://dispatch.visionairy.biz/pro')
 " "$HTTP_BODY" 2>/dev/null || echo "https://dispatch.visionairy.biz/pro")
         W=52
-        ({ echo ""; printf '━%.0s' $(seq 1 $W); echo; echo " ${DICON} Dispatch  →  Task shift detected"; printf '━%.0s' $(seq 1 $W); echo; echo " You've used your 5 free detections today."; echo " Upgrade for unlimited + Sonnet ranking — \$10/month → $UPGRADE_URL"; printf '━%.0s' $(seq 1 $W); echo; } > /dev/tty) 2>/dev/null || true
+        SEP=$(printf '━%.0s' $(seq 1 $W))
+        notify "
+$SEP
+ ${DICON} Dispatch  →  Task shift detected
+$SEP
+ You've used your 5 free detections today.
+ Upgrade for unlimited + Sonnet ranking — \$10/month → $UPGRADE_URL
+$SEP"
         # Set cooldown: suppress for next 5 triggers
         python3 -c "
 import json, sys
@@ -206,7 +248,12 @@ with open(state_file, 'w') as f:
             exit 0
         fi
         W=52
-        ({ echo ""; printf '━%.0s' $(seq 1 $W); echo; echo " ${DICON} Dispatch  →  Token invalid or expired"; echo " Re-authenticate: $DISPATCH_ENDPOINT/token-lookup"; printf '━%.0s' $(seq 1 $W); echo; } > /dev/tty) 2>/dev/null || true
+        SEP=$(printf '━%.0s' $(seq 1 $W))
+        notify "
+$SEP
+ ${DICON} Dispatch  →  Token invalid or expired
+ Re-authenticate: $DISPATCH_ENDPOINT/token-lookup
+$SEP"
         python3 -c "
 import json, sys
 from datetime import datetime
