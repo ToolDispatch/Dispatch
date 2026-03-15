@@ -183,12 +183,10 @@ Go to `https://dispatch.visionairy.biz/token-lookup` — signs you in with GitHu
 **Want to uninstall**
 
 ```bash
-rm -rf ~/.claude/dispatch
-rm ~/.claude/hooks/dispatch.sh
-rm ~/.claude/hooks/dispatch-preuse.sh
+bash uninstall.sh
 ```
 
-Then remove the `UserPromptSubmit` and `PreToolUse` hook entries from `~/.claude/settings.json`.
+Removes all files, hook scripts, and settings.json entries automatically.
 
 ---
 

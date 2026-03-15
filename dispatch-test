@@ -2,7 +2,7 @@
 # dispatch-test — verify Dispatch installation is working correctly
 set -euo pipefail
 
-SKILL_ROUTER_DIR="${HOME}/.claude/skill-router"
+SKILL_ROUTER_DIR="${HOME}/.claude/dispatch"
 HOOKS_DIR="${HOME}/.claude/hooks"
 CONFIG_FILE="${SKILL_ROUTER_DIR}/config.json"
 SETTINGS_FILE="${HOME}/.claude/settings.json"
@@ -20,7 +20,7 @@ echo ""
 echo "Files:"
 [ -f "${SKILL_ROUTER_DIR}/classifier.py" ] && pass "classifier.py" || fail "classifier.py missing — run install.sh"
 [ -f "${SKILL_ROUTER_DIR}/evaluator.py" ] && pass "evaluator.py" || fail "evaluator.py missing — run install.sh"
-[ -f "${HOOKS_DIR}/skill-router.sh" ] && pass "skill-router.sh hook" || fail "skill-router.sh missing — run install.sh"
+[ -f "${HOOKS_DIR}/dispatch.sh" ] && pass "dispatch.sh hook" || fail "dispatch.sh missing — run install.sh"
 
 echo ""
 echo "Python dependencies:"
@@ -34,9 +34,9 @@ with open('${SETTINGS_FILE}') as f:
     s = json.load(f)
 hooks = s.get('hooks', {}).get('UserPromptSubmit', [])
 if isinstance(hooks, list):
-    found = any('skill-router' in str(h) for h in hooks)
+    found = any('dispatch' in str(h) for h in hooks)
 elif isinstance(hooks, str):
-    found = 'skill-router' in hooks
+    found = 'dispatch' in hooks
 else:
     found = False
 sys.exit(0 if found else 1)

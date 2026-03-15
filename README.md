@@ -66,55 +66,52 @@ Start a **new** Claude Code session after install — hooks load at session star
 
 ---
 
-## Three ways to run it
+## Plans
 
-### Hosted Free — recommended for most people
+### Free — start here
 
-Sign up at [dispatch.visionairy.biz/auth/github](https://dispatch.visionairy.biz/auth/github) with GitHub. You get a token that `install.sh` asks for. No API key needed on your end — the hosted endpoint handles classification and ranking.
+[Sign up with GitHub](https://dispatch.visionairy.biz/auth/github) — no API key, no card required. `install.sh` will ask for your token.
 
-**What you get:**
-- 5 interceptions/day (resets daily)
-- Haiku for shift detection and scoring
-- Live marketplace search on each intercept
-- Dashboard at `dispatch.visionairy.biz/dashboard?token=YOUR_TOKEN`
+- 5 interceptions/day
+- Haiku ranking
+- Live marketplace search
 
-**What leaves your machine:** your last ~3 messages and working directory path, sent to dispatch.visionairy.biz for classification. Passed to Haiku and discarded — we don't store conversation content. We store your GitHub username, usage count, and task type labels (e.g., `flutter-fixing`).
+**What leaves your machine:** your last ~3 messages and working directory path, sent to classify the task. Not stored — we keep your GitHub username, usage count, and task type labels (e.g., `flutter-fixing`). No conversation content.
 
-### Hosted Pro — $10/month
+---
 
-Everything in Free, plus:
-
-- **Unlimited interceptions**
-- **Sonnet for ranking** — materially sharper scores and reasons, fewer irrelevant suggestions
-- **Pre-ranked catalog** — tools pre-scored daily by category, so `/catalog` responses come back in milliseconds instead of hitting live registries in real time
-- **Pro dashboard** — see your interception history, block rate, top tools suggested, and quota at a glance
+### Pro — $10/month
 
 [Upgrade at dispatch.visionairy.biz/pro](https://dispatch.visionairy.biz/pro)
 
-The catalog is the compounding advantage. As more developers use Dispatch across different stacks, the signal on which tools actually matter for which tasks gets sharper. BYOK users run the same algorithm in isolation; Pro users benefit from aggregate patterns across the whole network.
+- **Unlimited interceptions**
+- **Sonnet for ranking** — sharper scores, better reasons, fewer misses
+- **Pre-ranked catalog** — tools scored daily from real install data and GitHub signal, not live search. Faster and more accurate
+- **Network intelligence** — every confirmed install across all Pro users feeds back into catalog scores. The longer you run it, the better it gets at knowing which tools actually work for your stack
+- **Full dashboard** — interception history, block rate, top tools, conversion tracking
 
-### BYOK — bring your own API key
+The catalog is the compounding advantage. BYOK and Free users get a snapshot of the marketplace in real time. Pro users get a ranked, signal-weighted view built from aggregate behavior across the whole network — and it improves every day.
 
-If you'd rather run entirely on your own infrastructure with no data leaving your machine:
+---
+
+### BYOK — air-gapped or enterprise environments
+
+If your security policy prohibits sending any data to external services:
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...
-
-# Persist across sessions:
-echo 'export ANTHROPIC_API_KEY=sk-ant-...' >> ~/.bashrc   # bash
-echo 'export ANTHROPIC_API_KEY=sk-ant-...' >> ~/.zshrc    # zsh
 ```
 
-No token, no server, no data sharing. Dispatch runs the full algorithm locally using Haiku. Your API costs for a typical session (10 messages, 2–3 shifts) are under $0.00005 — less than a cent for a full month of heavy use.
+Dispatch runs entirely locally. No account, no data leaves your machine. You lose the catalog intelligence, Sonnet ranking, and dashboard — but the core intercept loop works. API costs are negligible (~$0.00005/session).
 
-| | Hosted Free | Hosted Pro | BYOK |
+| | Free | Pro | BYOK |
 |---|---|---|---|
-| **Setup** | GitHub OAuth, no API key | GitHub OAuth + Stripe | API key only |
 | **Interceptions/day** | 5 | Unlimited | Unlimited |
 | **Ranking model** | Haiku | Sonnet | Haiku |
-| **Catalog** | Live search | Pre-ranked | Live search |
-| **Dashboard** | Upgrade teaser | ✓ | — |
-| **Cost** | Free | $10/month | ~$0/month API |
+| **Catalog** | Live search | Pre-ranked + network signal | Live search only |
+| **Dashboard** | — | ✓ | — |
+| **Network intelligence** | — | ✓ | — |
+| **Cost** | Free | $10/month | API costs (~$0) |
 | **Data sharing** | Task labels only | Task labels only | None |
 
 ---
@@ -221,12 +218,10 @@ The stack profile lives at `~/.claude/dispatch/stack_profile.json` and updates a
 ## Uninstall
 
 ```bash
-rm -rf ~/.claude/dispatch
-rm ~/.claude/hooks/dispatch.sh
-rm ~/.claude/hooks/dispatch-preuse.sh
+bash uninstall.sh
 ```
 
-Then remove the `UserPromptSubmit` and `PreToolUse` entries from `~/.claude/settings.json`.
+Removes all installed files, hook scripts, and settings.json entries automatically. Also cleans up pre-v0.9.2 installs if present.
 
 ---
 

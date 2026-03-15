@@ -34,6 +34,37 @@ if ! command -v npx &>/dev/null; then
     exit 1
 fi
 
+# ── Migrate from old skill-router directory if present ─────────────────────
+OLD_DIR="$HOME/.claude/skill-router"
+if [ -d "$OLD_DIR" ]; then
+    echo "  Migrating from ~/.claude/skill-router → ~/.claude/dispatch ..."
+    mkdir -p "$DISPATCH_DIR"
+    # Preserve existing config (token) and state (last_task_type etc.)
+    [ -f "$OLD_DIR/config.json" ] && [ ! -f "$DISPATCH_DIR/config.json" ] && cp "$OLD_DIR/config.json" "$DISPATCH_DIR/"
+    [ -f "$OLD_DIR/state.json" ]  && [ ! -f "$DISPATCH_DIR/state.json"  ] && cp "$OLD_DIR/state.json"  "$DISPATCH_DIR/"
+    rm -rf "$OLD_DIR"
+    # Remove old hook scripts
+    rm -f "$HOOKS_DIR/skill-router.sh" "$HOOKS_DIR/preuse-hook.sh"
+    # Remove old hook entries from settings.json
+    python3 - <<PYEOF
+import json
+try:
+    with open("$SETTINGS") as f:
+        s = json.load(f)
+    for event in ["UserPromptSubmit", "PreToolUse"]:
+        if event in s.get("hooks", {}):
+            s["hooks"][event] = [
+                e for e in s["hooks"][event]
+                if not any(x in h.get("command","") for h in e.get("hooks",[]) for x in ["skill-router.sh","preuse-hook.sh"])
+            ]
+    with open("$SETTINGS", "w") as f:
+        json.dump(s, f, indent=2)
+except Exception:
+    pass
+PYEOF
+    echo "  ✓ Migration complete"
+fi
+
 # ── Create directories ─────────────────────────────────────────────────────
 mkdir -p "$DISPATCH_DIR" "$HOOKS_DIR"
 
