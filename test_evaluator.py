@@ -27,20 +27,70 @@ class TestDeletedFunctions(unittest.TestCase):
             "get_installed_skills must be removed in v0.7.0"
 
 
+class TestSearchOneTermHTTP(unittest.TestCase):
+    """_search_one_term must use skills.sh HTTP API, not npx subprocess."""
+
+    def _mock_get(self, skills):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"skills": skills}
+        return mock_resp
+
+    def test_parses_api_response_into_skill_id_format(self):
+        """source@name format must be constructed from API fields."""
+        api_skills = [
+            {"name": "flutter-layout", "source": "flutter/skills", "id": "flutter/skills/flutter-layout", "installs": 100},
+            {"name": "flutter-state", "source": "flutter/skills", "id": "flutter/skills/flutter-state", "installs": 80},
+        ]
+        with patch("evaluator.requests.get", return_value=self._mock_get(api_skills)), \
+             patch("evaluator._load_cache", return_value={}), \
+             patch("evaluator._save_cache"):
+            from evaluator import _search_one_term
+            result = _search_one_term("flutter")
+        assert len(result) == 2
+        assert result[0]["id"] == "flutter/skills@flutter-layout"
+        assert "description" in result[0]
+
+    def test_returns_empty_on_http_exception(self):
+        """Must return [] without raising when requests throws."""
+        with patch("evaluator.requests.get", side_effect=Exception("network error")), \
+             patch("evaluator._load_cache", return_value={}):
+            from evaluator import _search_one_term
+            result = _search_one_term("anything")
+        assert result == []
+
+    def test_returns_empty_on_non_200_response(self):
+        """Must return [] when API returns non-200 status."""
+        mock_resp = MagicMock()
+        mock_resp.status_code = 503
+        with patch("evaluator.requests.get", return_value=mock_resp), \
+             patch("evaluator._load_cache", return_value={}):
+            from evaluator import _search_one_term
+            result = _search_one_term("anything")
+        assert result == []
+
+    def test_does_not_use_subprocess(self):
+        """subprocess must not be called — HTTP API replaced it."""
+        import evaluator
+        assert not hasattr(evaluator, "subprocess"), \
+            "subprocess import must be removed from evaluator.py"
+
+
 class TestSearchRegistry(unittest.TestCase):
     def test_returns_list_for_known_type(self):
         result = search_registry("flutter")
         assert isinstance(result, list)
 
     def test_returns_empty_list_on_failure(self):
-        with patch("evaluator.subprocess.run", side_effect=Exception("fail")):
+        with patch("evaluator.requests.get", side_effect=Exception("fail")), \
+             patch("evaluator._load_cache", return_value={}):
             result = search_registry("anything")
         assert result == []
 
     def test_returns_dicts_with_id_and_description(self):
         """search_registry must return list of dicts, not bare strings."""
         result = search_registry("flutter")
-        if result:  # only assert structure if results returned
+        if result:
             assert isinstance(result[0], dict)
             assert "id" in result[0]
             assert "description" in result[0]

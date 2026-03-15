@@ -1,7 +1,7 @@
 import json
 import os
 import re
-import subprocess
+import requests
 import time
 import anthropic
 from llm_client import get_client, ranker_model, load_config
@@ -108,25 +108,19 @@ def _search_one_term(term: str, limit: int = 5) -> list:
             and (not cached_data or isinstance(cached_data[0], dict))):
         return cached_data
     try:
-        result = subprocess.run(
-            ["npx", "--yes", "skills", "find", term],
-            capture_output=True, text=True, timeout=6, check=False
+        resp = requests.get(
+            "https://skills.sh/api/search",
+            params={"q": term, "limit": limit},
+            timeout=8,
         )
-        lines = result.stdout.split("\n")
+        if resp.status_code != 200:
+            return entry.get("data", [])
         skills = []
-        for line in lines:
-            stripped = strip_ansi(line).strip()
-            if "@" not in stripped or "/" not in stripped:
-                continue
-            if stripped.startswith("http") or stripped.startswith("└"):
-                continue
-            parts = stripped.split()
-            if not parts:
-                continue
-            skill_id = parts[0]
-            if "/" in skill_id and "@" in skill_id:
-                description = " ".join(parts[1:]) if len(parts) > 1 else ""
-                skills.append({"id": skill_id, "description": description})
+        for skill in resp.json().get("skills", []):
+            source = skill.get("source", "")
+            name = skill.get("name", "")
+            if source and name:
+                skills.append({"id": f"{source}@{name}", "description": ""})
         skills = skills[:limit]
         if "registry" not in cache:
             cache["registry"] = {}
