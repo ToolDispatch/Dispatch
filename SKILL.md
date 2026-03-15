@@ -5,7 +5,7 @@ description: >
   current task. Runs as a UserPromptSubmit + PreToolUse hook — fires silently
   in the background, intercepts tool calls when a better marketplace alternative
   exists (≥10-point score gap), and shows a ranked recommendation list with
-  install commands. Supports hosted mode (free, 5 detections/day) or BYOK
+  install commands. Supports hosted mode (free, 8 detections/day) or BYOK
   (bring your own Anthropic API key, unlimited).
 license: MIT
 hooks:
@@ -55,7 +55,7 @@ recommendation. The user can type "proceed" to bypass.
 
 | Mode | Requirement | Detections |
 |------|------------|-----------|
-| **Hosted** | Free token at dispatch.visionairy.biz | 5/day free, unlimited Pro ($10/mo) |
+| **Hosted** | Free token at dispatch.visionairy.biz | 8/day free, unlimited Pro ($10/mo — first 250 get $6/mo for life) |
 | **BYOK** | `ANTHROPIC_API_KEY` set | Unlimited |
 
 ## Docs

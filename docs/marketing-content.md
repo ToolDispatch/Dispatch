@@ -35,7 +35,7 @@ Dispatch is a two-hook system that runs silently in every Claude Code session. H
 
 There's no fixed taxonomy. Haiku generates labels like `react-native`, `langchain`, `github-actions-shipping` from your conversation. Task types then map to one of 16 MECE categories for registry search. 93 unit tests across 4 modules. Requires Python 3.8+, Node.js, and either a free hosted token or your own Anthropic API key.
 
-The hosted mode (free at dispatch.visionairy.biz, $10/month for unlimited) aggregates install and bypass behavior across users. Over time, the ranking reflects actual install rates, not just LLM scoring. BYOK runs the same algorithm in isolation — it works, but it's blind to what other developers actually reach for when doing the same task.
+The hosted mode (free at dispatch.visionairy.biz, $10/month for unlimited — first 250 subscribers get $6/month for life) aggregates install and bypass behavior across users. Over time, the ranking reflects actual install rates, not just LLM scoring. BYOK runs the same algorithm in isolation — it works, but it's blind to what other developers actually reach for when doing the same task.
 
 Honest limitations: uninstalled registry skills are ranked from their ID alone (e.g., `firebase/agent-skills@firebase-firestore-basics`) — reasons for those are inferred from the name, not a full description. Recommendations are only as good as what you have installed. The more plugins in your install, the sharper it gets. And the hook adds ~100–500ms to every message (Stage 1 only) and ~3–5s on confirmed shifts — still within Claude Code's 10s hard timeout.
 
@@ -167,7 +167,7 @@ Two modes:
 
 BYOK: your own Anthropic key, runs entirely locally, zero data leaving your machine. Full algorithm, no network effect.
 
-Hosted: free token at dispatch.visionairy.biz (8 detections/day). $10/mo Pro = unlimited + Sonnet ranking + collective intelligence from real install patterns.
+Hosted: free token at dispatch.visionairy.biz (8 detections/day). $10/mo Pro = unlimited + Sonnet ranking + collective intelligence from real install patterns. First 250 subscribers lock in $6/mo for life.
 ```
 
 **Tweet 7 — Open source:**
@@ -602,7 +602,7 @@ Two hooks, 93 tests, and a discovery that Claude Code's transcript format isn't 
 - What the hosted endpoint aggregates: install events and bypass events (tool interceptions where user proceeded anyway)
 - How aggregate signal changes ranking: actual install rate per task type becomes a factor alongside LLM scoring
 - The privacy tradeoff: what is and isn't stored (task types stored, not conversation content)
-- Free tier limits (8 detections/day) vs. Pro ($10/month, unlimited + Sonnet ranking)
+- Free tier limits (8 detections/day) vs. Pro ($10/month, unlimited + Sonnet ranking — first 250 subscribers at $6/month for life)
 - Sonnet vs. Haiku for ranking: materially sharper reasons and better score calibration
 
 ---

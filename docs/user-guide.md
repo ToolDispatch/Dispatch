@@ -135,7 +135,7 @@ Shows:
 
 | | Free | Pro |
 |---|---|---|
-| Interceptions/day | 5 | Unlimited |
+| Interceptions/day | 8 | Unlimited |
 | Ranking model | Haiku | Sonnet |
 | Catalog | Live search (~2–4s) | Pre-ranked (<200ms) |
 | Dashboard | Upgrade teaser | Full history + stats |

@@ -221,7 +221,7 @@ except:
 $SEP
  ${DICON} Dispatch  →  Task shift detected
 $SEP
- You've used your 5 free detections today.
+ You've used your 8 free detections today.
  Upgrade for unlimited + Sonnet ranking — \$10/month → $UPGRADE_URL
 $SEP"
         # Set cooldown: suppress for next 5 triggers

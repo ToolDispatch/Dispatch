@@ -72,7 +72,7 @@ Start a **new** Claude Code session after install — hooks load at session star
 
 [Sign up with GitHub](https://dispatch.visionairy.biz/auth/github) — no API key, no card required. `install.sh` will ask for your token.
 
-- 5 interceptions/day
+- 8 interceptions/day
 - Haiku ranking
 - Live marketplace search
 
@@ -81,6 +81,8 @@ Start a **new** Claude Code session after install — hooks load at session star
 ---
 
 ### Pro — $10/month
+
+> **Founding Dispatcher offer:** First 250 subscribers lock in **$6/month for life**. After 250, standard rate applies.
 
 [Upgrade at dispatch.visionairy.biz/pro](https://dispatch.visionairy.biz/pro)
 

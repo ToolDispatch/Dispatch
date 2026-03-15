@@ -241,7 +241,7 @@ except:
 
 if [ -n "$FINAL_TOKEN" ]; then
     echo "  Mode:      Hosted  (token: $(echo "$FINAL_TOKEN" | cut -c1-12)...)"
-    echo "  Plan:      Free — 5 detections/day"
+    echo "  Plan:      Free — 8 detections/day"
     echo "  Upgrade:   $DISPATCH_ENDPOINT/pro  (\$10/month — unlimited + Sonnet)"
     echo "  Dashboard: $DISPATCH_ENDPOINT/dashboard?token=$FINAL_TOKEN"
 elif [ -n "${ANTHROPIC_API_KEY:-}" ]; then

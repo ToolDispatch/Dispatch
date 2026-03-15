@@ -197,7 +197,7 @@ Both have GitHub Actions CI (`.github/workflows/tests.yml`) that runs on push/PR
 **User says they're not being intercepted**
 → Ask them to run `/dispatch status` in a CC session. Checks if hooks are installed and shows last task detected.
 
-**User hit free tier limit (5/day)**
+**User hit free tier limit (8/day)**
 → They'll see quota errors. Direct to `/pro?token=TOKEN` or gift Pro via `/admin/set-plan`.
 
 **Deploy stuck**
