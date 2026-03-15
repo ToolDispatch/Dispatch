@@ -31,6 +31,9 @@ mkdir -p "$DISPATCH_DIR" "$HOOKS_DIR"
 # ── Copy Python modules ────────────────────────────────────────────────────
 cp classifier.py "$DISPATCH_DIR/"
 cp evaluator.py "$DISPATCH_DIR/"
+cp interceptor.py "$DISPATCH_DIR/"
+cp category_mapper.py "$DISPATCH_DIR/"
+cp categories.json "$DISPATCH_DIR/"
 
 # ── Seed state files ───────────────────────────────────────────────────────
 [ -f "$DISPATCH_DIR/state.json" ] || echo '{"last_task_type":null,"last_updated":null}' > "$DISPATCH_DIR/state.json"
@@ -38,6 +41,8 @@ cp evaluator.py "$DISPATCH_DIR/"
 # ── Install hook script ────────────────────────────────────────────────────
 cp dispatch.sh "$HOOKS_DIR/skill-router.sh"
 chmod +x "$HOOKS_DIR/skill-router.sh"
+cp preuse_hook.sh "$HOOKS_DIR/preuse-hook.sh"
+chmod +x "$HOOKS_DIR/preuse-hook.sh"
 
 # ── Register hook in settings.json ────────────────────────────────────────
 if [ ! -f "$SETTINGS" ]; then
@@ -78,17 +83,39 @@ with open(settings_path, "w") as f:
 print("Registered UserPromptSubmit hook in settings.json")
 PYEOF
 
-# ── Pre-warm npx cache (prevents first-run hook timeout) ───────────────────
-echo "Pre-warming skill registry cache..."
-python3 -c "
-import sys
-sys.path.insert(0, '$DISPATCH_DIR')
+python3 - <<PYEOF
+import json, sys
+
+settings_path = "$SETTINGS"
+hook_cmd = "bash $HOOKS_DIR/preuse-hook.sh"
+
 try:
-    from evaluator import get_installed_skills
-    get_installed_skills()
-except Exception:
-    pass
-" 2>/dev/null || true
+    with open(settings_path) as f:
+        settings = json.load(f)
+except (json.JSONDecodeError, IOError):
+    settings = {}
+
+hooks = settings.setdefault("hooks", {})
+
+for entry in hooks.get("PreToolUse", []):
+    for h in entry.get("hooks", []):
+        if h.get("command") == hook_cmd:
+            print("PreToolUse hook already registered — skipping.")
+            sys.exit(0)
+
+hooks.setdefault("PreToolUse", []).append({
+    "hooks": [{
+        "type": "command",
+        "command": hook_cmd,
+        "timeout_ms": 10000
+    }]
+})
+
+with open(settings_path, "w") as f:
+    json.dump(settings, f, indent=2)
+
+print("Registered PreToolUse hook in settings.json")
+PYEOF
 
 # ── Auth / API key setup ───────────────────────────────────────────────────
 echo ""

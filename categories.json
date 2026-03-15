@@ -1,0 +1,98 @@
+[
+  {
+    "id": "source-control",
+    "label": "Source Control & GitHub",
+    "search_terms": ["github", "git", "pull-request", "branch", "commit", "merge", "pr", "shipping"],
+    "example_tools": ["mcp__github__create_pull_request", "gh-cli"]
+  },
+  {
+    "id": "database",
+    "label": "Database & SQL",
+    "search_terms": ["database", "sql", "postgres", "supabase", "mysql", "sqlite", "mongodb", "redis", "query", "migration", "schema", "rls"],
+    "example_tools": ["mcp__supabase__execute_sql", "supabase-postgres-best-practices"]
+  },
+  {
+    "id": "cloud-infrastructure",
+    "label": "Cloud Infrastructure",
+    "search_terms": ["aws", "gcp", "azure", "terraform", "cdk", "cloudformation", "lambda", "s3", "ec2", "cloud"],
+    "example_tools": []
+  },
+  {
+    "id": "frontend",
+    "label": "Frontend & UI Frameworks",
+    "search_terms": ["react", "vue", "angular", "nextjs", "svelte", "html", "css", "tailwind", "component", "ui", "frontend"],
+    "example_tools": []
+  },
+  {
+    "id": "mobile",
+    "label": "Mobile Development",
+    "search_terms": ["flutter", "react-native", "ios", "android", "swift", "kotlin", "mobile"],
+    "example_tools": []
+  },
+  {
+    "id": "ai-ml",
+    "label": "AI & ML Pipelines",
+    "search_terms": ["langchain", "llamaindex", "openai", "rag", "llm", "agent", "ml", "vector-store"],
+    "example_tools": []
+  },
+  {
+    "id": "testing",
+    "label": "Testing & QA",
+    "search_terms": ["test", "jest", "pytest", "playwright", "vitest", "cypress", "unit", "e2e", "mock", "spec"],
+    "example_tools": []
+  },
+  {
+    "id": "devops-cicd",
+    "label": "DevOps & CI/CD",
+    "search_terms": ["docker", "kubernetes", "github-actions", "cicd", "deploy", "pipeline", "helm", "k8s", "container"],
+    "example_tools": []
+  },
+  {
+    "id": "auth-identity",
+    "label": "Authentication & Identity",
+    "search_terms": ["auth", "oauth", "jwt", "session", "login", "identity", "clerk", "nextauth"],
+    "example_tools": []
+  },
+  {
+    "id": "api-integrations",
+    "label": "APIs & Third-Party Integrations",
+    "search_terms": ["webhook", "rest", "graphql", "slack", "twilio", "sendgrid", "integration", "zapier"],
+    "example_tools": []
+  },
+  {
+    "id": "data-processing",
+    "label": "Data Processing & ETL",
+    "search_terms": ["etl", "pandas", "csv", "transform", "data-processing", "ingestion", "scraping"],
+    "example_tools": []
+  },
+  {
+    "id": "monitoring",
+    "label": "Monitoring & Observability",
+    "search_terms": ["sentry", "datadog", "logging", "metrics", "tracing", "observability", "monitoring", "alert"],
+    "example_tools": []
+  },
+  {
+    "id": "documentation",
+    "label": "Documentation",
+    "search_terms": ["docs", "readme", "swagger", "openapi", "docstring", "documentation", "wiki", "changelog"],
+    "example_tools": []
+  },
+  {
+    "id": "search-embeddings",
+    "label": "Search & Embeddings",
+    "search_terms": ["search", "embedding", "pinecone", "pgvector", "semantic", "elasticsearch", "typesense"],
+    "example_tools": []
+  },
+  {
+    "id": "backend-frameworks",
+    "label": "Backend Frameworks",
+    "search_terms": ["express", "fastapi", "django", "rails", "nestjs", "fastify", "flask", "backend", "server", "api"],
+    "example_tools": []
+  },
+  {
+    "id": "payments",
+    "label": "Payments & Billing",
+    "search_terms": ["stripe", "payment", "billing", "subscription", "invoice", "checkout"],
+    "example_tools": []
+  }
+]

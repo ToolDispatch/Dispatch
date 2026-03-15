@@ -3,55 +3,28 @@ import os
 import unittest
 from unittest.mock import patch, MagicMock
 from evaluator import (
-    scan_installed_plugins,
-    scan_mcp_servers,
-    get_installed_skills,
     search_registry,
     rank_recommendations,
-    build_recommendation_list
+    build_recommendation_list,
+    describe_cc_tool
 )
 
-PLUGINS_DIR = "/home/visionairy/.claude/plugins/marketplaces"
 
+class TestDeletedFunctions(unittest.TestCase):
+    def test_scan_installed_plugins_removed(self):
+        import evaluator
+        assert not hasattr(evaluator, "scan_installed_plugins"), \
+            "scan_installed_plugins must be removed in v0.7.0"
 
-class TestScanInstalledPlugins(unittest.TestCase):
-    def test_returns_list_of_plugin_dicts(self):
-        result = scan_installed_plugins(PLUGINS_DIR)
-        assert isinstance(result, list)
-        assert len(result) > 0
-        assert all("name" in p for p in result)
-        assert all("description" in p for p in result)
-        assert all("marketplace" in p for p in result)
+    def test_scan_mcp_servers_removed(self):
+        import evaluator
+        assert not hasattr(evaluator, "scan_mcp_servers"), \
+            "scan_mcp_servers must be removed in v0.7.0"
 
-    def test_includes_known_plugin(self):
-        result = scan_installed_plugins(PLUGINS_DIR)
-        names = [p["name"] for p in result]
-        assert any(n in names for n in ["ultrathink", "create-worktrees", "flutter-mobile-app-dev"])
-
-    def test_handles_missing_dir_gracefully(self):
-        result = scan_installed_plugins("/nonexistent/path")
-        assert result == []
-
-
-class TestGetInstalledSkills(unittest.TestCase):
-    def test_returns_list(self):
-        result = get_installed_skills()
-        assert isinstance(result, list)
-
-    def test_returns_dicts_with_id_and_description(self):
-        """get_installed_skills returns [{id, description}] dicts, not bare strings."""
-        with patch("evaluator._load_cache", return_value={}), \
-             patch("evaluator._save_cache"), \
-             patch("evaluator.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0,
-                stdout="firebase-firestore-basics  Build Firestore-powered Claude agents\nsupabase-postgres  PostgreSQL best practices for Supabase\n"
-            )
-            result = get_installed_skills()
-        assert len(result) == 2
-        assert result[0]["id"] == "firebase-firestore-basics"
-        assert result[0]["description"] == "Build Firestore-powered Claude agents"
-        assert result[1]["id"] == "supabase-postgres"
+    def test_get_installed_skills_removed(self):
+        import evaluator
+        assert not hasattr(evaluator, "get_installed_skills"), \
+            "get_installed_skills must be removed in v0.7.0"
 
 
 class TestSearchRegistry(unittest.TestCase):
@@ -89,149 +62,137 @@ class TestSearchRegistry(unittest.TestCase):
 
 
 class TestRankRecommendations(unittest.TestCase):
-    @patch('evaluator.anthropic.Anthropic')
-    @patch.dict('os.environ', {'ANTHROPIC_API_KEY': 'test-key'})
-    def test_returns_all_tools_with_scores(self, mock_client_cls):
-        mock_client = MagicMock()
-        mock_client_cls.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text=json.dumps({
-                "all": [
-                    {"name": "flutter-mobile-app-dev", "score": 90, "installed": True, "reason": "Direct Flutter support"},
-                    {"name": "firebase/agent-skills@firebase-basics", "score": 70, "installed": False,
-                     "install_cmd": "npx skills add firebase/agent-skills@firebase-basics -y",
-                     "reason": "Firebase integration"}
-                ]
-            }))]
-        )
-        result = rank_recommendations(
-            task_type="flutter",
-            installed_plugins=[{"name": "flutter-mobile-app-dev", "description": "Flutter dev"}],
-            installed_skills=[],
-            registry_results=[{"id": "firebase/agent-skills@firebase-basics", "description": "Firebase integration for agents"}]
-        )
+    def _mock_response(self, text):
+        mock_resp = MagicMock()
+        mock_resp.content = [MagicMock(text=text)]
+        return mock_resp
+
+    def test_returns_cc_score_and_all(self):
+        from evaluator import rank_recommendations
+        payload = json.dumps({
+            "cc_score": 72,
+            "all": [{"name": "owner/repo@skill", "score": 88, "installed": False,
+                     "install_cmd": "npx skills add owner/repo@skill -y",
+                     "reason": "Better for this task"}]
+        })
+        with patch("evaluator.anthropic.Anthropic") as MockClient:
+            MockClient.return_value.messages.create.return_value = self._mock_response(payload)
+            result = rank_recommendations(
+                task_type="flutter-building",
+                registry_results=[{"id": "owner/repo@skill", "description": "Flutter skill"}],
+                context_snippet="building a flutter widget",
+                cc_tool="superpowers:brainstorming",
+                cc_tool_description="Brainstorm before building"
+            )
+        assert "cc_score" in result
+        assert isinstance(result["cc_score"], int)
         assert "all" in result
-        assert len(result["all"]) == 2
-        assert result["all"][0]["name"] == "flutter-mobile-app-dev"
-        assert result["all"][0]["score"] == 90
-        assert result["all"][1]["installed"] is False
+        assert len(result["all"]) == 1
 
-    @patch('evaluator.anthropic.Anthropic')
-    @patch.dict('os.environ', {'ANTHROPIC_API_KEY': 'test-key'})
-    def test_normalizes_old_format_to_all_list(self, mock_client_cls):
-        """If Haiku returns old {installed, suggested} format, convert to {all: [...]}."""
-        mock_client = MagicMock()
-        mock_client_cls.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text=json.dumps({
-                "installed": [{"name": "flutter-mobile-app-dev", "reason": "Flutter support"}],
-                "suggested": [{"name": "firebase/agent-skills@firebase-basics",
-                               "install_cmd": "npx skills add firebase/agent-skills@firebase-basics -y",
-                               "reason": "Firebase"}]
-            }))]
-        )
-        result = rank_recommendations("flutter", [], [], [])
-        assert "all" in result
-        assert len(result["all"]) == 2
-        # installed items get score 70, suggested get 60
-        installed_items = [t for t in result["all"] if t.get("installed")]
-        suggested_items = [t for t in result["all"] if not t.get("installed")]
-        assert len(installed_items) == 1
-        assert installed_items[0]["score"] == 70
-        assert len(suggested_items) == 1
-        assert suggested_items[0]["score"] == 60
+    def test_returns_safe_default_on_api_failure(self):
+        from evaluator import rank_recommendations
+        with patch("evaluator.anthropic.Anthropic", side_effect=Exception("no key")):
+            result = rank_recommendations("flutter", [], cc_tool="some-tool")
+        assert result == {"cc_score": 0, "all": []}
 
-    @patch('evaluator.anthropic.Anthropic')
-    def test_handles_ranking_failure_gracefully(self, mock_client_cls):
-        mock_client = MagicMock()
-        mock_client_cls.return_value = mock_client
-        mock_client.messages.create.side_effect = Exception("API error")
-        result = rank_recommendations("flutter", [], [], [])
-        assert result == {"all": []}
+    def test_strips_markdown_wrapper(self):
+        from evaluator import rank_recommendations
+        wrapped = '```json\n{"cc_score": 65, "all": []}\n```'
+        with patch("evaluator.anthropic.Anthropic") as MockClient:
+            MockClient.return_value.messages.create.return_value = self._mock_response(wrapped)
+            result = rank_recommendations("general", [], cc_tool="x")
+        assert result["cc_score"] == 65
 
-    @patch('evaluator.anthropic.Anthropic')
-    def test_handles_malformed_ranking_response(self, mock_client_cls):
-        mock_client = MagicMock()
-        mock_client_cls.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text="not json")]
-        )
-        result = rank_recommendations("flutter", [], [], [])
-        assert result == {"all": []}
-
-    @patch('evaluator.anthropic.Anthropic')
-    @patch.dict('os.environ', {'ANTHROPIC_API_KEY': 'test-key'})
-    def test_passes_full_250_char_description(self, mock_client_cls):
-        """Plugin description passed to Haiku is truncated at 250, not 100."""
-        mock_client = MagicMock()
-        mock_client_cls.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text='{"all": []}')]
-        )
-        long_desc = "x" * 300
-        rank_recommendations(
-            task_type="flutter",
-            installed_plugins=[{"name": "my-plugin", "description": long_desc}],
-            installed_skills=[],
-            registry_results=[]
-        )
-        call_args = mock_client.messages.create.call_args
-        user_content = call_args[1]["messages"][0]["content"]
-        assert "x" * 250 in user_content
-        assert "x" * 251 not in user_content
+    def test_no_cc_tool_still_works(self):
+        from evaluator import rank_recommendations
+        payload = json.dumps({"cc_score": 0, "all": []})
+        with patch("evaluator.anthropic.Anthropic") as MockClient:
+            MockClient.return_value.messages.create.return_value = self._mock_response(payload)
+            result = rank_recommendations("general", [])
+        assert result == {"cc_score": 0, "all": []}
 
 
 class TestBuildRecommendationList(unittest.TestCase):
-    @patch('evaluator.rank_recommendations')
-    def test_build_recommendation_list_returns_dict(self, mock_rank):
-        mock_rank.return_value = {"all": []}
-        result = build_recommendation_list("flutter")
-        assert isinstance(result, dict)
+    def _mock_rank(self, task_type, registry_results, context_snippet=None, cc_tool=None, cc_tool_description=None, model=None):
+        return {
+            "cc_score": 70,
+            "all": [
+                {"name": "owner/repo@flutter-skill", "score": 88, "installed": False,
+                 "install_cmd": "npx skills add owner/repo@flutter-skill -y",
+                 "reason": "Highly relevant"}
+            ]
+        }
+
+    def test_returns_required_keys(self):
+        with patch("evaluator.search_registry", return_value=[]), \
+             patch("evaluator.rank_recommendations", side_effect=self._mock_rank):
+            result = build_recommendation_list("flutter-building", cc_tool="superpowers:brainstorming")
         assert "all" in result
         assert "top_pick" in result
-        assert "installed" in result
-        assert "suggested" in result
+        assert "cc_score" in result
 
-    @patch('evaluator.search_registry', return_value=[])
-    @patch('evaluator.get_installed_skills', return_value=[])
-    @patch('evaluator.rank_recommendations')
-    def test_enriches_installed_items_with_marketplace(self, mock_rank, _skills, _registry):
-        mock_rank.return_value = {
-            "all": [{"name": "my-plugin", "score": 80, "installed": True, "reason": "relevant"}]
-        }
-        fake_plugins = [{"name": "my-plugin", "description": "desc", "marketplace": "skillsmarket", "source": "installed"}]
-        result = build_recommendation_list("flutter", installed_plugins=fake_plugins)
-        assert result["all"][0].get("marketplace") == "skillsmarket"
-        assert result["installed"][0].get("marketplace") == "skillsmarket"
+    def test_cc_score_passed_through(self):
+        with patch("evaluator.search_registry", return_value=[]), \
+             patch("evaluator.rank_recommendations", side_effect=self._mock_rank):
+            result = build_recommendation_list("flutter-building", cc_tool="superpowers:brainstorming")
+        assert result["cc_score"] == 70
 
-    @patch('evaluator.search_registry', return_value=[])
-    @patch('evaluator.get_installed_skills', return_value=[])
-    @patch('evaluator.rank_recommendations')
-    def test_does_not_add_marketplace_when_absent(self, mock_rank, _skills, _registry):
-        mock_rank.return_value = {
-            "all": [{"name": "my-plugin", "score": 80, "installed": True, "reason": "relevant"}]
-        }
-        fake_plugins = [{"name": "my-plugin", "description": "desc", "marketplace": "", "source": "installed"}]
-        result = build_recommendation_list("flutter", installed_plugins=fake_plugins)
-        assert "marketplace" not in result["all"][0]
+    def test_score_gap_truncation_applied(self):
+        tools = [
+            {"name": "a", "score": 90, "installed": False},
+            {"name": "b", "score": 60, "installed": False},  # 30-point gap — truncate here
+            {"name": "c", "score": 55, "installed": False},
+        ]
+        with patch("evaluator.search_registry", return_value=[]), \
+             patch("evaluator.rank_recommendations", return_value={"cc_score": 50, "all": tools}):
+            result = build_recommendation_list("anything")
+        assert len(result["all"]) == 1
+        assert result["all"][0]["name"] == "a"
+
+    def test_install_url_derived_from_skill_id(self):
+        tools = [{"name": "vercel-labs/skills@react-skill", "score": 80, "installed": False,
+                  "install_cmd": "npx skills add vercel-labs/skills@react-skill -y"}]
+        with patch("evaluator.search_registry", return_value=[]), \
+             patch("evaluator.rank_recommendations", return_value={"cc_score": 60, "all": tools}):
+            result = build_recommendation_list("react")
+        item = result["all"][0]
+        assert item.get("install_url") == "https://github.com/vercel-labs/skills"
+
+    def test_no_installed_or_suggested_keys(self):
+        with patch("evaluator.search_registry", return_value=[]), \
+             patch("evaluator.rank_recommendations", return_value={"cc_score": 0, "all": []}):
+            result = build_recommendation_list("general")
+        assert "installed" not in result
+        assert "suggested" not in result
+
+    def test_uses_category_search_when_category_id_provided(self):
+        from evaluator import build_recommendation_list
+        search_calls = []
+        def mock_search_by_cat(category_id):
+            search_calls.append(category_id)
+            return []
+        with patch("evaluator.search_by_category", side_effect=mock_search_by_cat), \
+             patch("evaluator.search_registry", return_value=[]) as mock_registry, \
+             patch("evaluator.rank_recommendations", return_value={"cc_score": 0, "all": []}):
+            build_recommendation_list("flutter-building", category_id="mobile")
+        assert len(search_calls) == 1
+        assert search_calls[0] == "mobile"
+        mock_registry.assert_not_called()
 
 
 class TestBuildRecommendationListWithContext(unittest.TestCase):
     @patch('evaluator.search_registry', return_value=[])
-    @patch('evaluator.get_installed_skills', return_value=[])
     @patch('evaluator.rank_recommendations')
-    def test_passes_context_snippet_to_rank(self, mock_rank, _skills, _registry):
+    def test_passes_context_snippet_to_rank(self, mock_rank, _registry):
         """context_snippet is accepted and forwarded without crashing."""
-        mock_rank.return_value = {"all": []}
+        mock_rank.return_value = {"cc_score": 0, "all": []}
         result = build_recommendation_list(
             "flutter",
-            installed_plugins=[],
             context_snippet="debugging a null pointer crash in my Flutter widget"
         )
         assert isinstance(result, dict)
         assert "all" in result
-        assert "installed" in result
-        assert "suggested" in result
+        assert "cc_score" in result
         _, kwargs = mock_rank.call_args
         assert kwargs.get("context_snippet") == "debugging a null pointer crash in my Flutter widget"
 
@@ -245,60 +206,58 @@ class TestRankHandlesEmptyContentList(unittest.TestCase):
         mock_response = MagicMock()
         mock_response.content = []
         mock_client.messages.create.return_value = mock_response
-        result = rank_recommendations("flutter", [], [], [])
-        assert result == {"all": []}
+        result = rank_recommendations("flutter", [])
+        assert result == {"cc_score": 0, "all": []}
 
 
 class TestBuildRecommendationListInstallUrl(unittest.TestCase):
     @patch('evaluator.search_registry', return_value=[])
-    @patch('evaluator.get_installed_skills', return_value=[])
     @patch('evaluator.rank_recommendations')
-    def test_adds_install_url_for_uninstalled_skill(self, mock_rank, _skills, _registry):
+    def test_adds_install_url_for_uninstalled_skill(self, mock_rank, _registry):
         mock_rank.return_value = {
+            "cc_score": 0,
             "all": [{"name": "firebase/agent-skills@firebase-basics", "score": 75,
                      "installed": False, "install_cmd": "npx skills add firebase/agent-skills@firebase-basics -y",
                      "reason": "Firebase support"}]
         }
-        result = build_recommendation_list("flutter", installed_plugins=[])
+        result = build_recommendation_list("flutter")
         item = result["all"][0]
         assert item.get("install_url") == "https://github.com/firebase/agent-skills"
-        assert len(result["suggested"]) == 1
-        assert len(result["installed"]) == 0
+        assert len(result["all"]) == 1
 
     @patch('evaluator.search_registry', return_value=[])
-    @patch('evaluator.get_installed_skills', return_value=[])
     @patch('evaluator.rank_recommendations')
-    def test_top_pick_is_first_item(self, mock_rank, _skills, _registry):
+    def test_top_pick_is_first_item(self, mock_rank, _registry):
         mock_rank.return_value = {
+            "cc_score": 0,
             "all": [
-                {"name": "top-tool", "score": 90, "installed": True, "reason": "best"},
+                {"name": "top-tool", "score": 90, "installed": False, "reason": "best"},
                 {"name": "second-tool", "score": 70, "installed": False,
                  "install_cmd": "npx skills add owner/repo@second-tool -y", "reason": "good"}
             ]
         }
-        result = build_recommendation_list("flutter", installed_plugins=[])
+        result = build_recommendation_list("flutter")
         assert result["top_pick"]["name"] == "top-tool"
         assert result["top_pick"]["score"] == 90
 
     @patch('evaluator.search_registry', return_value=[])
-    @patch('evaluator.get_installed_skills', return_value=[])
     @patch('evaluator.rank_recommendations')
-    def test_top_pick_is_none_when_no_tools(self, mock_rank, _skills, _registry):
-        mock_rank.return_value = {"all": []}
-        result = build_recommendation_list("flutter", installed_plugins=[])
+    def test_top_pick_is_none_when_no_tools(self, mock_rank, _registry):
+        mock_rank.return_value = {"cc_score": 0, "all": []}
+        result = build_recommendation_list("flutter")
         assert result["top_pick"] is None
 
 
 class TestScoreGapTruncation(unittest.TestCase):
     @patch('evaluator.search_registry', return_value=[])
-    @patch('evaluator.get_installed_skills', return_value=[])
     @patch('evaluator.rank_recommendations')
-    def test_cuts_after_25_point_cliff(self, mock_rank, _skills, _registry):
+    def test_cuts_after_25_point_cliff(self, mock_rank, _registry):
         mock_rank.return_value = {
+            "cc_score": 0,
             "all": [
-                {"name": "a", "score": 90, "installed": True, "reason": "top"},
-                {"name": "b", "score": 85, "installed": True, "reason": "good"},
-                {"name": "c", "score": 72, "installed": True, "reason": "ok"},
+                {"name": "a", "score": 90, "installed": False, "reason": "top"},
+                {"name": "b", "score": 85, "installed": False, "reason": "good"},
+                {"name": "c", "score": 72, "installed": False, "reason": "ok"},
                 {"name": "d", "score": 44, "installed": False, "install_cmd": "npx skills add x/y@d -y", "reason": "weak"},
                 {"name": "e", "score": 42, "installed": False, "install_cmd": "npx skills add x/y@e -y", "reason": "weak"},
             ]
@@ -309,13 +268,13 @@ class TestScoreGapTruncation(unittest.TestCase):
         assert result["all"][-1]["name"] == "c"
 
     @patch('evaluator.search_registry', return_value=[])
-    @patch('evaluator.get_installed_skills', return_value=[])
     @patch('evaluator.rank_recommendations')
-    def test_no_cut_when_gap_under_25(self, mock_rank, _skills, _registry):
+    def test_no_cut_when_gap_under_25(self, mock_rank, _registry):
         mock_rank.return_value = {
+            "cc_score": 0,
             "all": [
-                {"name": "a", "score": 90, "installed": True, "reason": "top"},
-                {"name": "b", "score": 68, "installed": True, "reason": "ok"},
+                {"name": "a", "score": 90, "installed": False, "reason": "top"},
+                {"name": "b", "score": 68, "installed": False, "reason": "ok"},
             ]
         }
         result = build_recommendation_list("flutter")
@@ -323,12 +282,12 @@ class TestScoreGapTruncation(unittest.TestCase):
         assert len(result["all"]) == 2
 
     @patch('evaluator.search_registry', return_value=[])
-    @patch('evaluator.get_installed_skills', return_value=[])
     @patch('evaluator.rank_recommendations')
-    def test_cut_at_exact_25_point_gap(self, mock_rank, _skills, _registry):
+    def test_cut_at_exact_25_point_gap(self, mock_rank, _registry):
         mock_rank.return_value = {
+            "cc_score": 0,
             "all": [
-                {"name": "a", "score": 80, "installed": True, "reason": "top"},
+                {"name": "a", "score": 80, "installed": False, "reason": "top"},
                 {"name": "b", "score": 55, "installed": False, "install_cmd": "npx skills add x/y@b -y", "reason": "ok"},
                 {"name": "c", "score": 50, "installed": False, "install_cmd": "npx skills add x/y@c -y", "reason": "low"},
             ]
@@ -337,46 +296,6 @@ class TestScoreGapTruncation(unittest.TestCase):
         # 80 → 55 = exactly 25-point gap — cut after "a"
         assert len(result["all"]) == 1
         assert result["all"][0]["name"] == "a"
-
-
-class TestScanMcpServers(unittest.TestCase):
-    def test_returns_empty_list_when_no_mcp_json(self):
-        result = scan_mcp_servers(cwd="/nonexistent/path/xyz")
-        assert result == []
-
-    def test_parses_mcp_servers(self):
-        import tempfile
-        mcp_data = {
-            "mcpServers": {
-                "github": {"command": "npx", "args": ["@modelcontextprotocol/server-github"]},
-                "supabase": {"command": "npx", "description": "Supabase database access"}
-            }
-        }
-        with tempfile.TemporaryDirectory() as tmpdir:
-            mcp_file = os.path.join(tmpdir, ".mcp.json")
-            with open(mcp_file, "w") as f:
-                json.dump(mcp_data, f)
-            result = scan_mcp_servers(cwd=tmpdir)
-        assert len(result) == 2
-        names = [s["name"] for s in result]
-        assert "github" in names
-        assert "supabase" in names
-        assert all("description" in s for s in result)
-        assert all(s.get("source") == "mcp" for s in result)
-
-    def test_deduplicates_across_files(self):
-        """Same server in global and project .mcp.json appears only once."""
-        import tempfile
-        mcp_data = {"mcpServers": {"github": {"command": "npx"}}}
-        with tempfile.TemporaryDirectory() as tmpdir:
-            mcp_file = os.path.join(tmpdir, ".mcp.json")
-            with open(mcp_file, "w") as f:
-                json.dump(mcp_data, f)
-            # Patch global path to point to same file
-            with patch("evaluator.os.path.expanduser", return_value=mcp_file):
-                result = scan_mcp_servers(cwd=tmpdir)
-        github_count = sum(1 for s in result if s["name"] == "github")
-        assert github_count == 1
 
 
 class TestRankRecommendationsModel(unittest.TestCase):
@@ -390,30 +309,110 @@ class TestRankRecommendationsModel(unittest.TestCase):
         mock_response.content = [MagicMock(text='{"all": []}')]
         mock_client.messages.create.return_value = mock_response
 
-        rank_recommendations("flutter", [], [], [], model="claude-sonnet-4-6")
+        rank_recommendations("flutter", [], model="claude-sonnet-4-6")
 
         _, kwargs = mock_client.messages.create.call_args
         assert kwargs["model"] == "claude-sonnet-4-6"
 
     @patch('evaluator.search_registry', return_value=[])
-    @patch('evaluator.get_installed_skills', return_value=[])
     @patch('evaluator.rank_recommendations')
-    def test_build_passes_model_to_rank(self, mock_rank, _skills, _registry):
+    def test_build_passes_model_to_rank(self, mock_rank, _registry):
         """build_recommendation_list forwards model param to rank_recommendations."""
-        mock_rank.return_value = {"all": []}
-        build_recommendation_list("flutter", installed_plugins=[], model="claude-sonnet-4-6")
+        mock_rank.return_value = {"cc_score": 0, "all": []}
+        build_recommendation_list("flutter", model="claude-sonnet-4-6")
         _, kwargs = mock_rank.call_args
         assert kwargs.get("model") == "claude-sonnet-4-6"
 
     @patch('evaluator.search_registry', return_value=[])
-    @patch('evaluator.get_installed_skills', return_value=[])
     @patch('evaluator.rank_recommendations')
-    def test_build_defaults_to_haiku(self, mock_rank, _skills, _registry):
+    def test_build_defaults_to_haiku(self, mock_rank, _registry):
         """build_recommendation_list defaults to Haiku when model not specified."""
-        mock_rank.return_value = {"all": []}
-        build_recommendation_list("flutter", installed_plugins=[])
+        mock_rank.return_value = {"cc_score": 0, "all": []}
+        build_recommendation_list("flutter")
         _, kwargs = mock_rank.call_args
         assert kwargs.get("model") == "claude-haiku-4-5-20251001"
+
+
+class TestDescribeCcTool(unittest.TestCase):
+    def test_returns_string(self):
+        result = describe_cc_tool("superpowers:brainstorming")
+        assert isinstance(result, str)
+
+    def test_returns_empty_string_on_unknown(self):
+        result = describe_cc_tool("nonexistent-tool-xyz-abc")
+        assert result == ""
+
+    def test_finds_skill_in_cache(self):
+        fake_cache = {
+            "installed_skills": {
+                "data": [
+                    {"id": "superpowers:brainstorming", "description": "Brainstorm before building"}
+                ],
+                "fetched_at": 9999999999
+            }
+        }
+        with patch("evaluator._load_cache", return_value=fake_cache):
+            result = describe_cc_tool("superpowers:brainstorming")
+        assert result == "Brainstorm before building"
+
+    def test_finds_mcp_server_by_prefix(self):
+        fake_mcp = json.dumps({
+            "mcpServers": {
+                "github": {"description": "GitHub API integration"}
+            }
+        })
+        with patch("builtins.open", unittest.mock.mock_open(read_data=fake_mcp)):
+            result = describe_cc_tool("github (create_pull_request)")
+        assert "GitHub" in result
+
+    def test_empty_string_input_returns_empty(self):
+        result = describe_cc_tool("")
+        assert result == ""
+
+
+class TestSearchByCategory(unittest.TestCase):
+    def test_returns_empty_when_load_categories_unavailable(self):
+        from evaluator import search_by_category
+        with patch("evaluator._load_categories", None):
+            result = search_by_category("mobile")
+        assert result == []
+
+    def test_returns_list(self):
+        from evaluator import search_by_category
+        mock_cats = [{"id": "mobile", "search_terms": ["flutter", "react-native"]}]
+        with patch("evaluator._load_categories", return_value=mock_cats):
+            with patch("evaluator._search_one_term", return_value=[]):
+                result = search_by_category("mobile")
+        assert isinstance(result, list)
+
+    def test_unknown_category_id_returns_empty(self):
+        from evaluator import search_by_category
+        mock_cats = [{"id": "mobile", "search_terms": ["flutter"]}]
+        with patch("evaluator._load_categories", return_value=mock_cats):
+            result = search_by_category("nonexistent-category-xyz")
+        assert result == []
+
+    def test_searches_category_terms(self):
+        from evaluator import search_by_category
+        mock_cats = [{"id": "mobile", "search_terms": ["flutter", "react-native"]}]
+        calls = []
+        def mock_search(term, limit=5):
+            calls.append(term)
+            return []
+        with patch("evaluator._load_categories", return_value=mock_cats):
+            with patch("evaluator._search_one_term", side_effect=mock_search):
+                search_by_category("mobile")
+        assert calls == ["flutter", "react-native"]
+
+    def test_deduplicates_results(self):
+        from evaluator import search_by_category
+        mock_cats = [{"id": "mobile", "search_terms": ["flutter", "react-native"]}]
+        duplicate = {"id": "owner/repo@skill", "description": "desc"}
+        with patch("evaluator._load_categories", return_value=mock_cats):
+            with patch("evaluator._search_one_term", return_value=[duplicate]):
+                result = search_by_category("mobile")
+        ids = [r["id"] for r in result]
+        assert len(ids) == len(set(ids))
 
 
 if __name__ == '__main__':

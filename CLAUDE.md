@@ -2,36 +2,41 @@
 
 **Project:** Dispatch — Runtime skill router for Claude Code
 **Repo:** github.com/VisionAIrySE/Dispatch
-**Stack:** Python 3.8+ · Bash · Claude Haiku API
+**Stack:** Python 3.8+ · Bash · Claude Haiku API (free) / Sonnet 4.6 (Pro)
 
 ---
 
 ## Architecture
 
-Two-stage UserPromptSubmit hook:
+Two-hook pipeline:
 
-**Stage 1 — classifier.py** (every message, ~100ms)
-- Haiku call with last 3 transcript messages + cwd
-- Returns `{"shift": bool, "task_type": str, "confidence": float}`
-- Exits silently if no shift or confidence < 0.7
-- Task type is open-ended (not a fixed list) — Haiku generates the most specific label it can
+**Hook 1 — dispatch.sh** (UserPromptSubmit, fires on every message)
+- Stage 1: Haiku shift detection, ~100ms — returns `{shift, task_type, confidence}`
+- Stage 2 (on confirmed shift only): maps task_type → category via `category_mapper.py`
+  keyword match against `categories.json`; logs unknown categories to `unknown_categories.jsonl`;
+  writes `last_task_type`, `last_category`, `last_context_snippet`, `last_cwd` to `state.json`
+- No stdout output — completely silent
 
-**Stage 2 — evaluator.py** (on confirmed shift only)
-- Scans `~/.claude/plugins/marketplaces/` for installed plugins (extracts marketplace name from path)
-- Runs `npx skills list -g` for installed agent skills (cached 1hr in npx_cache.json)
-- Runs `npx skills find <primary_term>` for registry search (also cached)
-- Haiku ranks all results by relevance, returns top 4 installed + top 3 suggested
-- Post-ranking: enriches installed items with marketplace name for display
+**Hook 2 — preuse_hook.sh** (PreToolUse, fires before tool invocations)
+- Intercepts: `Skill`, `Agent`, `mcp__*` tool calls — passes through everything else
+- Reads task category from `state.json` (written by dispatch.sh)
+- Searches marketplace by category terms (more targeted than keyword split)
+- Scores marketplace tools vs CC's chosen tool (Haiku/Sonnet 0–100)
+- Blocks (exit 2) if top marketplace tool ≥ cc_score + 10 points
+- Writes bypass token so user's "proceed" passes through without re-block
 
 **Hosted mode (token in config.json):**
-- Stage 1: POSTs transcript to /classify endpoint; quota consumed only on confirmed shifts
-- Stage 2: sends locally-scanned plugins/skills to /rank; falls back to BYOK ranking on non-200
-- 402 (limit reached): shown once with upgrade URL, suppressed for next 5 shifts via limit_cooldown
-- 401 (invalid token): shown once with re-auth URL, suppressed for next 20 messages via auth_invalid_cooldown
+- dispatch.sh: POSTs transcript to /classify — quota on confirmed shifts only
+- preuse_hook.sh: POSTs `{task_type, context_snippet, cc_tool, category_id}` to /rank
+- Fallback to BYOK ranking on non-200 from either endpoint
+- 402 / 401 cooldown handling preserved
 
-**dispatch.sh** — orchestrates Stage 1 + 2, renders UI, updates state.json
-- 3s wait only fires when there are actual recommendations (skipped on "no skills found")
-- Trap cleans up mktemp tmpfiles on any exit
+**Key modules:**
+- `classifier.py` — Haiku shift detection
+- `evaluator.py` — `search_by_category()`, `rank_recommendations()`, `build_recommendation_list()`
+- `interceptor.py` — tool intercept logic, bypass token, state readers
+- `category_mapper.py` — `map_to_category()`, `log_unknown_category()`
+- `categories.json` — MECE 16-category catalog
 
 ---
 
@@ -40,14 +45,21 @@ Two-stage UserPromptSubmit hook:
 | File | Purpose |
 |------|---------|
 | `classifier.py` | Haiku shift detection + task classification |
-| `evaluator.py` | Plugin inventory + Haiku ranking |
-| `dispatch.sh` | Main hook — orchestrates everything |
-| `install.sh` | Copies files, registers hook in settings.json |
-| `test_classifier.py` | 12 unit tests for classifier |
-| `test_evaluator.py` | 13 unit tests for evaluator |
+| `evaluator.py` | Category search + Haiku ranking |
+| `interceptor.py` | PreToolUse tool parsing, bypass token, state readers |
+| `category_mapper.py` | Maps task_type → category_id; logs unknowns |
+| `categories.json` | MECE category catalog (16 categories) |
+| `dispatch.sh` | UserPromptSubmit hook — shift detection + state write |
+| `preuse_hook.sh` | PreToolUse blocking hook — intercepts and scores |
+| `install.sh` | Copies files, registers both hooks in settings.json |
+| `test_classifier.py` | 19 unit tests for classifier |
+| `test_evaluator.py` | 39 unit tests for evaluator |
+| `test_interceptor.py` | 22 unit tests for interceptor |
+| `test_category_mapper.py` | 13 unit tests for category_mapper |
 
-**Installed location:** `~/.claude/skill-router/` (classifier.py, evaluator.py)
-**Hook location:** `~/.claude/hooks/skill-router.sh`
+**Installed location:** `~/.claude/skill-router/` (classifier.py, evaluator.py, interceptor.py, category_mapper.py, categories.json)
+**Hook 1:** `~/.claude/hooks/skill-router.sh` (UserPromptSubmit)
+**Hook 2:** `~/.claude/hooks/preuse-hook.sh` (PreToolUse)
 **State:** `~/.claude/skill-router/state.json`
 
 ---
@@ -65,33 +77,34 @@ return json.loads(text.strip())
 ```
 
 **Hook timeout is 10 seconds total** — Budget carefully:
-- Stage 1 (Haiku): ~500ms
-- Stage 2 (npx + Haiku): ~3-5s
-- UI wait: 3s
+- dispatch.sh Stage 1 (Haiku): ~500ms
+- preuse_hook.sh Stage 2 (registry + Haiku): ~3-5s
 - npx timeout set to 6s, not 20s
 
-**Compound task types** — Classifier may return `docker-aws-github-actions`. Registry search uses only the primary term (`docker`) via `.split("-")[0]`.
+**Compound task types** — Classifier may return `docker-aws-github-actions`. `search_by_category()` uses all category search_terms (up to 5), deduplicated. Primary term used for state tracking.
 
 **Broad exception catches are intentional** — Hook must never block Claude. Every function returns a safe default on failure.
 
-**Task type is open-ended** — Haiku generates descriptive labels like `react-native`, `langchain`, `github-actions`. Not a fixed list. New skills in the registry are auto-discoverable.
+**Task type is open-ended** — Haiku generates descriptive labels like `react-native`, `langchain`, `github-actions`. Not a fixed list. `category_mapper.py` maps these to one of 16 MECE categories by keyword match.
 
 **TASK_TYPE passed as argv, not interpolated** — Prevents shell injection. Always use `sys.argv[n]` in inline Python, never `'$TASK_TYPE'`.
 
 **`head -n -1` is GNU-only** — BSD head on macOS interprets it as "print 1 line". Use `sed '$d'` (delete last line) for portable HTTP body extraction.
+
+**Bypass token TTL is 120s** — Written by preuse_hook.sh before exit 2, consumed on the very next Skill/Agent/mcp__ call. Clears itself after use.
 
 ---
 
 ## Testing
 
 ```bash
-cd ~/.claude/skill-router
-python3 -m pytest test_classifier.py test_evaluator.py -v
+cd /home/visionairy/Dispatch
+python3 -m pytest test_classifier.py test_evaluator.py test_interceptor.py test_category_mapper.py -v
 ```
 
-All 25 tests must pass before pushing.
+All 93 tests must pass before pushing (19 classifier + 39 evaluator + 22 interceptor + 13 category_mapper).
 
-**Live test:** Requires a new CC session. Cannot simulate UserPromptSubmit from inside a session.
+**Live test:** Requires a new CC session. Cannot simulate UserPromptSubmit or PreToolUse from inside a session.
 
 **Manual classifier test:**
 ```bash
@@ -107,8 +120,9 @@ ANTHROPIC_API_KEY=sk-ant-... python3 classifier.py \
 
 After editing source files, sync to installed location:
 ```bash
-cp classifier.py evaluator.py ~/.claude/skill-router/
+cp classifier.py evaluator.py interceptor.py category_mapper.py categories.json ~/.claude/skill-router/
 cp dispatch.sh ~/.claude/hooks/skill-router.sh
+cp preuse_hook.sh ~/.claude/hooks/preuse-hook.sh
 ```
 
 install.sh handles this automatically for fresh installs.
@@ -128,6 +142,7 @@ CC transcript JSONL entries are `{"type":"user", "isMeta":bool, "message":{"role
 
 ## Known Issues / History
 
+- **2026-03-14:** v0.7.0 — PreToolUse interception added. dispatch.sh now silent (Stage 1 + state write only). preuse_hook.sh intercepts Skill/Agent/mcp__* calls, scores marketplace alternatives vs CC's chosen tool, blocks on 10+ point gap. Category-first model: task_type maps to MECE category for targeted search. Unknown categories logged to unknown_categories.jsonl.
 - **2026-03-05:** Haiku markdown wrapping bug — fixed in classifier.py and evaluator.py
 - **2026-03-05:** Compound task types broke registry search — fixed with primary term split
 - **2026-03-05:** Shell injection via TASK_TYPE — fixed with argv passing
@@ -159,8 +174,18 @@ CC transcript JSONL entries are `{"type":"user", "isMeta":bool, "message":{"role
 
 ## Roadmap
 
-- [x] Hosted endpoint — live at dispatch.visionairy.biz, $6/month Pro
+- [x] Hosted endpoint — live at dispatch.visionairy.biz, $10/month Pro
 - [x] Caching layer for plugin registry (npx_cache.json, 1hr TTL)
+- [x] Collective 0–100 ranked list with TOP PICK + install info (v0.4.0)
+- [x] Rich descriptions fed to ranker — grounded reasons (v0.5.0)
+- [x] Multi-term compound task type search (v0.5.0)
+- [x] MCP server scanning from .mcp.json (v0.5.0)
+- [x] Score gap truncation — 25-point cliff (v0.5.0)
+- [x] Sonnet for Pro tier ranking (v0.5.0)
+- [x] PreToolUse interception — blocks on 10+ point gap (v0.7.0)
+- [x] Category-first model — MECE 16-category catalog (v0.7.0)
+- [ ] Daily catalog cron — crawl all sources, build enriched tool_catalog.json (v0.8.0)
+- [ ] Weekly category scoring cron — zero live API calls at hook time (v0.8.0)
 - [ ] End-to-end live session testing + screen recording for promotion
 - [ ] `/dispatch status` command
 - [ ] skills.sh distribution

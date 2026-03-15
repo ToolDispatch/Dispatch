@@ -6,7 +6,7 @@
 # BYOK mode:    ANTHROPIC_API_KEY set → calls Haiku directly (no token needed)
 #
 # Stage 1: Topic shift detection (~100ms, every message)
-# Stage 2: Plugin evaluation + interactive UI (only on confirmed shift)
+# Stage 2: Store task context for PreToolUse hook (only on confirmed shift)
 # =============================================================================
 
 set -uo pipefail
@@ -18,8 +18,7 @@ CONFIG_FILE="$SKILL_ROUTER_DIR/config.json"
 
 # Ensure tmpfiles are always cleaned up on exit
 CLASSIFY_TMP=""
-RANK_TMP=""
-trap 'rm -f "${CLASSIFY_TMP:-}" "${RANK_TMP:-}" 2>/dev/null' EXIT
+trap 'rm -f "${CLASSIFY_TMP:-}" 2>/dev/null' EXIT
 
 # Extract current prompt from hook JSON — avoids transcript timing lag (CC writes
 # the current message to transcript AFTER the hook fires, not before)
@@ -169,7 +168,7 @@ except:
     print('https://dispatch.visionairy.biz/pro')
 " "$HTTP_BODY" 2>/dev/null || echo "https://dispatch.visionairy.biz/pro")
         W=52
-        { echo ""; printf '━%.0s' $(seq 1 $W); echo; echo " ${DICON} Dispatch  →  Task shift detected"; printf '━%.0s' $(seq 1 $W); echo; echo " You've used your 5 free detections today."; echo " Upgrade for unlimited + Sonnet ranking — \$10/month → $UPGRADE_URL"; printf '━%.0s' $(seq 1 $W); echo; } >&2
+        ({ echo ""; printf '━%.0s' $(seq 1 $W); echo; echo " ${DICON} Dispatch  →  Task shift detected"; printf '━%.0s' $(seq 1 $W); echo; echo " You've used your 5 free detections today."; echo " Upgrade for unlimited + Sonnet ranking — \$10/month → $UPGRADE_URL"; printf '━%.0s' $(seq 1 $W); echo; } > /dev/tty) 2>/dev/null || true
         # Set cooldown: suppress for next 5 triggers
         python3 -c "
 import json, sys
@@ -207,7 +206,7 @@ with open(state_file, 'w') as f:
             exit 0
         fi
         W=52
-        { echo ""; printf '━%.0s' $(seq 1 $W); echo; echo " ${DICON} Dispatch  →  Token invalid or expired"; echo " Re-authenticate: $DISPATCH_ENDPOINT/token-lookup"; printf '━%.0s' $(seq 1 $W); echo; } >&2
+        ({ echo ""; printf '━%.0s' $(seq 1 $W); echo; echo " ${DICON} Dispatch  →  Token invalid or expired"; echo " Re-authenticate: $DISPATCH_ENDPOINT/token-lookup"; printf '━%.0s' $(seq 1 $W); echo; } > /dev/tty) 2>/dev/null || true
         python3 -c "
 import json, sys
 from datetime import datetime
@@ -257,9 +256,27 @@ print(json.loads(sys.argv[1]).get('confidence', 0))
 CONF_OK=$(python3 -c "print('yes' if float('$CONFIDENCE') >= 0.7 else 'no')" 2>/dev/null || echo "no")
 [ "$CONF_OK" != "yes" ] && exit 0
 
-# ── Stage 2: Evaluate + render UI ─────────────────────────────────────────
-# Shared context: extract last 3 user messages before the hosted/BYOK split
-# so both paths (including hosted fallback) use the same enriched context.
+# ── Map task type to category ─────────────────────────────────────────────
+CATEGORY=$(python3 -c "
+import sys
+sys.path.insert(0, sys.argv[1])
+from category_mapper import map_to_category
+result = map_to_category(sys.argv[2])
+print(result if result else 'unknown')
+" "$SKILL_ROUTER_DIR" "$TASK_TYPE" 2>/dev/null || echo "unknown")
+
+# Log unknown categories for future catalog expansion
+if [ "$CATEGORY" = "unknown" ]; then
+    python3 -c "
+import sys
+sys.path.insert(0, sys.argv[1])
+from category_mapper import log_unknown_category
+log_unknown_category(sys.argv[2])
+" "$SKILL_ROUTER_DIR" "$TASK_TYPE" 2>/dev/null || true
+fi
+
+# ── Stage 2: Store state for PreToolUse hook ───────────────────────────────
+# Extract last 3 user messages to build context snippet for preuse_hook.sh
 CONTEXT_SNIPPET=$(python3 -c "
 import json, sys, os
 sys.path.insert(0, sys.argv[1])
@@ -284,189 +301,22 @@ if current:
 print(' | '.join(recent))
 " "$SKILL_ROUTER_DIR" "$TRANSCRIPT_PATH" "$CURRENT_PROMPT" 2>/dev/null || echo "$CURRENT_PROMPT")
 
-if [ -n "$DISPATCH_TOKEN" ]; then
-    # ── Hosted rank ────────────────────────────────────────────────────────
-    RANK_TMP=$(mktemp)
-    python3 -c "
-import json, sys, os
-sys.path.insert(0, sys.argv[2])
-try:
-    from evaluator import scan_installed_plugins, get_installed_skills, scan_mcp_servers, PLUGINS_DIR
-    installed_plugins = scan_installed_plugins(PLUGINS_DIR) + scan_mcp_servers()
-    installed_skills = get_installed_skills()
-except Exception:
-    installed_plugins = []
-    installed_skills = []
-try:
-    from classifier import extract_recent_messages
-    transcript_path = sys.argv[3]
-    transcript = []
-    if transcript_path and os.path.exists(transcript_path):
-        with open(transcript_path) as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    try:
-                        transcript.append(json.loads(line))
-                    except Exception:
-                        pass
-    recent = extract_recent_messages(transcript, n=3)
-except Exception:
-    recent = []
-current_prompt = sys.argv[4] if len(sys.argv) > 4 else ''
-if current_prompt:
-    recent.append(current_prompt)
-    recent = recent[-3:]
-context_snippet = ' | '.join(recent)
-
-print(json.dumps({
-    'task_type': sys.argv[1],
-    'installed_plugins': installed_plugins,
-    'installed_skills': installed_skills,
-    'context_snippet': context_snippet
-}))
-" "$TASK_TYPE" "$SKILL_ROUTER_DIR" "$TRANSCRIPT_PATH" "$CURRENT_PROMPT" > "$RANK_TMP" 2>/dev/null || python3 -c "import json,sys; print(json.dumps({'task_type':sys.argv[1],'installed_plugins':[],'installed_skills':[],'context_snippet':''}))" "$TASK_TYPE" > "$RANK_TMP"
-    RANK_HTTP=$(curl -s -w "\n%{http_code}" \
-        -X POST "$DISPATCH_ENDPOINT/rank" \
-        -H "Authorization: Bearer $DISPATCH_TOKEN" \
-        -H "Content-Type: application/json" \
-        --data @"$RANK_TMP" \
-        --max-time 5 2>/dev/null || echo '{"installed":[],"suggested":[]}
-200')
-    rm -f "$RANK_TMP"
-    RANK_BODY=$(echo "$RANK_HTTP" | sed '$d')
-    RANK_CODE=$(echo "$RANK_HTTP" | tail -n 1)
-    if [ "$RANK_CODE" = "200" ]; then
-        RECOMMENDATIONS="$RANK_BODY"
-    else
-        # Server rank failed — fall back to local BYOK ranking
-        RECOMMENDATIONS=$(python3 -c "
-import sys, json
-sys.path.insert(0, sys.argv[3])
-from evaluator import build_recommendation_list
-print(json.dumps(build_recommendation_list(sys.argv[1], context_snippet=sys.argv[2])))
-" "$TASK_TYPE" "$CONTEXT_SNIPPET" "$SKILL_ROUTER_DIR" 2>/dev/null || echo '{"installed":[],"suggested":[]}')
-    fi
-else
-    # ── BYOK rank ──────────────────────────────────────────────────────────
-    RECOMMENDATIONS=$(python3 -c "
-import sys, json
-sys.path.insert(0, sys.argv[3])
-from evaluator import build_recommendation_list
-print(json.dumps(build_recommendation_list(sys.argv[1], context_snippet=sys.argv[2])))
-" "$TASK_TYPE" "$CONTEXT_SNIPPET" "$SKILL_ROUTER_DIR" 2>/dev/null || echo '{"installed":[],"suggested":[]}')
-fi
-
-HAS_RECS=$(python3 -c "
-import json, sys
-try:
-    r = json.loads(sys.argv[1])
-    has = bool(r.get('all') or r.get('installed') or r.get('suggested'))
-    print('yes' if has else 'no')
-except:
-    print('no')
-" "$RECOMMENDATIONS" 2>/dev/null || echo "no")
-[ "$HAS_RECS" != "yes" ] && exit 0
-
-# ── Output to stdout — CC injects this into Claude's context ──────────────
-python3 - "$TASK_TYPE" "$RECOMMENDATIONS" "$CONFIDENCE" "$TRANSCRIPT_PATH" <<'PYEOF'
-import json, sys
-
-task_type = sys.argv[1]
-try:
-    recs = json.loads(sys.argv[2])
-except Exception:
-    recs = {"all": [], "top_pick": None}
-
-confidence = float(sys.argv[3]) if len(sys.argv) > 3 and sys.argv[3] else 0.0
-conf_label = "high" if confidence >= 0.85 else "medium"
-task_display = task_type.replace('-', ' ').title()
-transcript_path = sys.argv[4] if len(sys.argv) > 4 else ""
-
-# Prefer new unified list; fall back to old format
-all_tools = recs.get("all", [])
-if not all_tools:
-    old_installed = recs.get("installed", [])
-    old_suggested = recs.get("suggested", [])
-    n_installed = len(old_installed)
-    n_suggested = len(old_suggested)
-    for idx, p in enumerate(old_installed):
-        p.setdefault("installed", True)
-        # Rank-preserving score: installed tools 65-80 based on position
-        p.setdefault("score", max(65, 80 - idx * 5))
-        all_tools.append(p)
-    for idx, s in enumerate(old_suggested):
-        s.setdefault("installed", False)
-        # Rank-preserving score: suggested tools 50-60 based on position
-        s.setdefault("score", max(50, 60 - idx * 5))
-        all_tools.append(s)
-
-top_pick = recs.get("top_pick") or (all_tools[0] if all_tools else None)
-
-lines = [
-    f"[DISPATCH] Task shift detected: {task_display} ({conf_label} confidence)",
-    "",
-    "Ranked tools for this task:",
-]
-
-for i, tool in enumerate(all_tools, 1):
-    name = tool.get("name", "")
-    score = tool.get("score", "?")
-    installed = tool.get("installed", True)
-    reason = tool.get("reason", "")
-    install_cmd = tool.get("install_cmd", "").replace("\n", " ")
-    install_url = tool.get("install_url", "").replace("\n", " ")
-    marketplace = tool.get("marketplace", "")
-
-    status = "(installed)" if installed else "(not installed)"
-    if marketplace:
-        status = f"(installed via {marketplace})"
-    top_marker = " ← TOP PICK" if (top_pick and name == top_pick.get("name")) else ""
-
-    lines.append(f"  {i}. {name} [{score}/100]{top_marker} {status}")
-    if reason:
-        lines.append(f"     Why: {reason}")
-    if not installed and install_cmd:
-        # Single command: install + relaunch CC
-        lines.append(f"     Install + restart: {install_cmd} && claude")
-    if not installed and install_url:
-        lines.append(f"     More info: {install_url}")
-
-# Install hint when top pick is not installed
-top_needs_install = top_pick and not top_pick.get("installed", True)
-if top_needs_install:
-    lines.extend([
-        "",
-        "⚠ Installing requires restarting this CC session.",
-        "  Before installing: run /compact to save a session summary.",
-        "  Then paste this into your terminal (installs + relaunches CC):",
-        f"    {top_pick.get('install_cmd', 'npx skills add <skill> -y')} && claude",
-    ])
-    if transcript_path:
-        lines.append(f"  Your session transcript is saved at: {transcript_path}")
-
-top_name = top_pick["name"] if top_pick else "the top tool"
-lines.extend([
-    "",
-    f'Before proceeding: state that you plan to use {top_name} for this task (one sentence why). Show this ranked list. Ask if I want a different tool or to install an uninstalled one. Wait for my response before taking any other action.',
-])
-
-print('\n'.join(lines))
-PYEOF
-
-# ── Update state ───────────────────────────────────────────────────────────
+# Write task_type + context + cwd to state — preuse_hook.sh reads these
 python3 -c "
 import json, sys
 from datetime import datetime
-state_file, task_type = sys.argv[1], sys.argv[2]
+state_file, task_type, category, context_snippet, cwd = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5]
 try:
     d = json.load(open(state_file))
 except Exception:
     d = {}
 d['last_task_type'] = task_type
+d['last_category'] = category
+d['last_context_snippet'] = context_snippet
+d['last_cwd'] = cwd
 d['last_updated'] = datetime.now().isoformat()
 with open(state_file, 'w') as f:
     json.dump(d, f)
-" "$STATE_FILE" "$TASK_TYPE" 2>/dev/null || true
+" "$STATE_FILE" "$TASK_TYPE" "$CATEGORY" "$CONTEXT_SNIPPET" "$CWD" 2>/dev/null || true
 
 exit 0

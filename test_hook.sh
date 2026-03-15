@@ -125,13 +125,13 @@ print(json.dumps({"shift": True, "task_type": "stripe", "confidence": 0.95}))
 STUB
     cat > "$SKILL_DIR/evaluator.py" << 'STUB'
 import json
-PLUGINS_DIR = ""
-def scan_installed_plugins(d): return []
-def get_installed_skills(): return []
-def build_recommendation_list(task_type):
+def build_recommendation_list(task_type, **kwargs):
     return {
+        "all": [{"name": "stripe-webhooks", "score": 85, "reason": "Stripe webhook integration", "installed": True}],
+        "top_pick": {"name": "stripe-webhooks", "score": 85},
         "installed": [{"name": "stripe-webhooks", "reason": "Stripe webhook integration", "marketplace": "claude-plugins-official"}],
-        "suggested": [{"name": "stripe-docs-skill", "reason": "Stripe API reference", "install_cmd": "npx skills install stripe-docs-skill"}]
+        "suggested": [{"name": "stripe-docs-skill", "reason": "Stripe API reference", "install_cmd": "npx skills install stripe-docs-skill"}],
+        "cc_score": 50
     }
 STUB
 }
@@ -251,22 +251,20 @@ run_scenario_3() {
 # SCENARIO 4: BYOK — shift detected → show UI
 # =============================================================================
 run_scenario_4() {
-    header "4: BYOK — shift detected → show recommendations"
+    header "4: BYOK — shift detected → state.json updated"
     save_state; save_config; save_byok
     set_state "flutter" 0 0
     set_config ""
     mock_byok_shift
     make_transcript
-    OUTPUT=$(run_hook "set up Stripe webhook endpoint and verify the signature" "stub-key")
-    restore_state; restore_config; restore_byok
-    if echo "$OUTPUT" | grep -q "Dispatch"; then
-        pass "Dispatch UI shown"
-        echo "$OUTPUT"
-    elif [ -z "$OUTPUT" ]; then
-        fail "No output — check stub classifier/evaluator"
+    run_hook "set up Stripe webhook endpoint and verify the signature" "stub-key" > /dev/null
+    restore_config; restore_byok
+    if python3 -c "import json; d=json.load(open('$STATE')); assert d.get('last_task_type'), 'no task_type'" 2>/dev/null; then
+        pass "state.json updated with last_task_type"
     else
-        fail "Unexpected output: $OUTPUT"
+        fail "state.json not updated with last_task_type"
     fi
+    restore_state
 }
 
 # =============================================================================
@@ -289,23 +287,21 @@ run_scenario_5() {
 # SCENARIO 6: Hosted — shift + recommendations → show UI
 # =============================================================================
 run_scenario_6() {
-    header "6: Hosted — shift detected → show recommendations"
+    header "6: Hosted — shift detected → state.json updated"
     start_mock_server "200_shift" 19876
     save_state; save_config; save_byok
     set_state "flutter" 0 0
     set_config "test-token" "http://127.0.0.1:19876"
     mock_byok_shift  # evaluator stub for local scan fallback
     make_transcript
-    OUTPUT=$(run_hook "set up Stripe webhook endpoint and verify the signature")
-    restore_state; restore_config; restore_byok; stop_mock_server
-    if echo "$OUTPUT" | grep -q "Dispatch"; then
-        pass "Dispatch UI shown"
-        echo "$OUTPUT"
-    elif [ -z "$OUTPUT" ]; then
-        fail "No output — check mock server"
+    run_hook "set up Stripe webhook endpoint and verify the signature" > /dev/null
+    restore_config; restore_byok; stop_mock_server
+    if python3 -c "import json; d=json.load(open('$STATE')); assert d.get('last_task_type'), 'no task_type'" 2>/dev/null; then
+        pass "state.json updated with last_task_type"
     else
-        fail "Unexpected output: $OUTPUT"
+        fail "state.json not updated with last_task_type"
     fi
+    restore_state
 }
 
 # =============================================================================
