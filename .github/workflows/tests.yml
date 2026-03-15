@@ -17,7 +17,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: python3 -m pip install anthropic requests
+        run: python3 -m pip install pytest anthropic requests
 
       - name: Run tests
         run: |
