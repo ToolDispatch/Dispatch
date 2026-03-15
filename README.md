@@ -14,92 +14,40 @@
   <img src="https://img.shields.io/badge/works%20with-Claude%20Code-orange" alt="Works with Claude Code">
 </p>
 
-**The missing layer for Claude Code — automatically surfaces the right plugins and skills before every task.**
+**A runtime skill router for Claude Code — intercepts tool calls, checks whether a better tool exists for what you're doing right now, and blocks if it finds one.**
 
-Claude Code has 500+ plugins and skills across multiple marketplaces. You're probably using 5 of them. Dispatch watches your conversation, detects when you shift to a new task, and recommends exactly what you need — before Claude responds.
-
-The hosted version gets smarter every day. As developers use Dispatch across thousands of sessions, aggregate patterns sharpen what gets recommended for each stack. New tools published to the skills registry are discovered automatically — no updates, no configuration, no manual curation. The longer Dispatch runs, the better it gets at knowing what you need before you do.
-
-<!-- GIF demo goes here after Loom recording -->
-
-When you shift tasks, Claude pauses and surfaces this before responding:
-
-```
-[DISPATCH] Task shift detected: Flutter Fixing (high confidence)
-
-Ranked tools for this task:
-
-  1. flutter-mobile-app-dev [92/100] ← TOP PICK (installed via claude-plugins-official)
-     Why: Provides Flutter/Dart-specific debugging workflows directly relevant to
-     the widget rendering issue you're tracking down.
-
-  2. superpowers:systematic-debugging [78/100] (installed)
-     Why: Gives Claude a structured hypothesis-driven debugging process — useful
-     for isolating the root cause before you start changing code.
-
-  3. firebase/agent-skills@firebase-basics [61/100] (not installed)
-     Why: If your widget reads from Firestore, this adds Firebase-aware context
-     to the debugging session.
-     Install + restart: npx skills add firebase/agent-skills@firebase-basics -y && claude
-     More info: https://github.com/firebase/agent-skills
-
-I plan to use flutter-mobile-app-dev for this task — it's the strongest match
-for Flutter-specific debugging. Would you like to use a different tool, or
-install one of the uninstalled options? Let me know before I proceed.
-```
+Claude Code has hundreds of plugins and marketplace skills. Most sessions you use the same handful and forget the rest exist. Dispatch watches your work in real time, detects when you shift to a new task, and — before Claude reaches for a tool — checks whether there's something better. If there is, it stops Claude and tells you.
 
 ---
 
-## The problem
+## What it actually does
 
-You're mid-session debugging a Flutter widget, then you say "actually let's write some tests." Claude proceeds — but your flutter-mobile-app-dev skill isn't loaded, and the test-driven-development skill you installed last month never comes up.
+Dispatch runs as two Claude Code hooks wired together:
 
-The Claude Code plugin ecosystem is powerful but invisible at runtime. You have to know what you have and manually invoke it. Most sessions, you forget.
+**Hook 1 — fires on every message you send.** Sends your last few messages to a small model for ~100ms. If it detects a task shift (you moved from debugging a Flutter widget to writing tests, say), it maps the shift to a category and saves it to state. Silent — you never see it.
 
-Dispatch fixes this automatically.
-
----
-
-## What it does
-
-Every message you send, Dispatch:
-
-1. **Detects action mode shifts** — Uses Claude Haiku to classify whether you've shifted domain or mode within a domain
-2. **Evaluates your plugins** — Scans every installed Claude Code plugin and agent skill
-3. **Searches the registry** — Queries [skills.sh](https://skills.sh) for relevant uninstalled options
-4. **Ranks everything together** — Scores all tools (installed + uninstalled) 0-100 for your specific task, presents a numbered list, and has Claude announce its top pick before proceeding
-5. **Waits for your choice** — Claude names the tool it plans to use, explains why in one sentence, and asks if you want something different before taking any action
-
-It's invisible when you don't need it. It surfaces when you do.
-
----
-
-## Using recommendations
-
-When Dispatch fires, Claude will:
-
-1. **Name its top pick** — the highest-scoring tool for your current task
-2. **Show the ranked list** — all relevant tools with scores, installed status, and a one-sentence reason for each
-3. **Wait** — it won't proceed until you respond
-
-**Your options:**
-- Say nothing special → Claude uses the top pick
-- Say `"use 2"` → Claude uses tool #2 instead
-- Say `"install 3"` → Claude walks you through installing it
-
-**Installing an uninstalled tool** requires restarting your CC session (Claude Code loads plugins at startup). Before you install:
+**Hook 2 — fires before every tool call.** When Claude is about to invoke a Skill, Agent, or MCP tool, Dispatch intercepts it. It searches the marketplace for tools relevant to your current task category, scores them against what Claude was about to use, and if a marketplace tool scores 10+ points higher — it blocks the call and surfaces the comparison:
 
 ```
-/compact
+[DISPATCH] Intercepted: CC is about to use 'superpowers:systematic-debugging' for Flutter Fixing.
+CC's tool score for this task: 62/100
+
+Marketplace alternatives:
+  1. flutter-mobile-app-dev [94/100] ← TOP PICK
+     Why: Purpose-built for Flutter/Dart debugging with widget tree inspection.
+     Install + restart: npx skills add flutter-mobile-app-dev -y && claude
+     More info: https://github.com/VisionAIrySE/flutter-mobile-app-dev
+
+⚠ A marketplace tool scores higher than 'superpowers:systematic-debugging' for this task.
+  Options:
+  1. Say 'proceed' to continue with the current tool (one-time bypass, no restart needed)
+  2. Install flutter-mobile-app-dev — run /compact first, then install and restart CC
+  3. Ignore Dispatch for this task — say 'skip dispatch'
+
+Present these options to the user. Wait for their response before taking any action.
 ```
 
-This saves a compressed summary of your session. Then paste the combined install + relaunch command shown in the recommendations:
-
-```bash
-npx skills add firebase/agent-skills@firebase-basics -y && claude
-```
-
-One command installs the tool and reopens CC. Your session context is preserved via `/compact` — just continue from where you left off.
+If no marketplace tool beats Claude's choice by 10+ points, Dispatch exits silently and the tool call goes through unchanged.
 
 ---
 
@@ -112,15 +60,42 @@ chmod +x install.sh
 ./install.sh
 ```
 
-`install.sh` will prompt you to connect via GitHub — sign in, copy the token, paste it back. That's it. No API key needed.
+`install.sh` walks you through three things: checking dependencies, registering both hooks in `~/.claude/settings.json`, and connecting to the hosted endpoint (or using your own API key). Takes about two minutes.
 
-Start a **new** Claude Code session. Dispatch is active immediately.
+Start a **new** Claude Code session after install — hooks load at session startup.
 
-> Dispatch hooks into `UserPromptSubmit` which loads at session startup — existing sessions won't pick it up.
+---
 
-### BYOK mode (bring your own API key)
+## Three ways to run it
 
-If you prefer to run entirely self-hosted with your own Anthropic key:
+### Hosted Free — recommended for most people
+
+Sign up at [dispatch.visionairy.biz/auth/github](https://dispatch.visionairy.biz/auth/github) with GitHub. You get a token that `install.sh` asks for. No API key needed on your end — the hosted endpoint handles classification and ranking.
+
+**What you get:**
+- 5 interceptions/day (resets daily)
+- Haiku for shift detection and scoring
+- Live marketplace search on each intercept
+- Dashboard at `dispatch.visionairy.biz/dashboard?token=YOUR_TOKEN`
+
+**What leaves your machine:** your last ~3 messages and working directory path, sent to dispatch.visionairy.biz for classification. Passed to Haiku and discarded — we don't store conversation content. We store your GitHub username, usage count, and task type labels (e.g., `flutter-fixing`).
+
+### Hosted Pro — $10/month
+
+Everything in Free, plus:
+
+- **Unlimited interceptions**
+- **Sonnet for ranking** — materially sharper scores and reasons, fewer irrelevant suggestions
+- **Pre-ranked catalog** — tools pre-scored daily by category, so `/catalog` responses come back in milliseconds instead of hitting live registries in real time
+- **Pro dashboard** — see your interception history, block rate, top tools suggested, and quota at a glance
+
+[Upgrade at dispatch.visionairy.biz/pro](https://dispatch.visionairy.biz/pro)
+
+The catalog is the compounding advantage. As more developers use Dispatch across different stacks, the signal on which tools actually matter for which tasks gets sharper. BYOK users run the same algorithm in isolation; Pro users benefit from aggregate patterns across the whole network.
+
+### BYOK — bring your own API key
+
+If you'd rather run entirely on your own infrastructure with no data leaving your machine:
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...
@@ -130,133 +105,116 @@ echo 'export ANTHROPIC_API_KEY=sk-ant-...' >> ~/.bashrc   # bash
 echo 'export ANTHROPIC_API_KEY=sk-ant-...' >> ~/.zshrc    # zsh
 ```
 
-Dispatch will use your key directly — no token, no server, no data leaving your machine.
+No token, no server, no data sharing. Dispatch runs the full algorithm locally using Haiku. Your API costs for a typical session (10 messages, 2–3 shifts) are under $0.00005 — less than a cent for a full month of heavy use.
+
+| | Hosted Free | Hosted Pro | BYOK |
+|---|---|---|---|
+| **Setup** | GitHub OAuth, no API key | GitHub OAuth + Stripe | API key only |
+| **Interceptions/day** | 5 | Unlimited | Unlimited |
+| **Ranking model** | Haiku | Sonnet | Haiku |
+| **Catalog** | Live search | Pre-ranked | Live search |
+| **Dashboard** | Upgrade teaser | ✓ | — |
+| **Cost** | Free | $10/month | ~$0/month API |
+| **Data sharing** | Task labels only | Task labels only | None |
 
 ---
 
 ## Requirements
 
-- **[Claude Code](https://claude.ai/code)** v1.x+ (hooks support required)
+- **[Claude Code](https://claude.ai/code)** (hooks support required — v1.x+)
 - **Python 3.8+**
 - **Node.js + npx** — [nodejs.org](https://nodejs.org)
-- **Either:** a free Dispatch account (recommended) **or** an Anthropic API key
+- One of: a Dispatch account (free) or an Anthropic API key
 
 The `anthropic` Python package installs automatically via `install.sh`.
 
 ---
 
-## Cost
+## Using it
 
-**Hosted (recommended):** Free for 5 detections/day. Upgrade for unlimited + Sonnet-quality ranking at **$10/month** → [dispatch.visionairy.biz/pro](https://dispatch.visionairy.biz/pro)
+Most of the time, Dispatch is invisible. Hook 1 runs on every message but exits silently unless it detects a shift. Hook 2 runs on every tool call but exits silently unless it finds something meaningfully better.
 
-The hosted version is more than convenience — it's collective intelligence. Every session across every user improves what gets recommended for your stack. BYOK runs the same algorithm in isolation; hosted runs it with the benefit of aggregate signal from the whole community.
+When it fires, Claude pauses and shows you the comparison. You have three options:
 
-New tools added to the skills registry are picked up automatically. You don't update Dispatch — Dispatch updates itself.
+- **Say `proceed`** — Claude uses its original tool choice, one-time bypass, no restart needed
+- **Install the top pick** — run `/compact` to save session context, paste the install command, restart CC and continue where you left off
+- **Say `skip dispatch`** — Dispatch ignores this task type going forward in the session
 
-**Pro subscribers get better recommendations, not just more of them.** Free tier uses Claude Haiku for ranking. Pro uses Claude Sonnet — materially sharper reasons, better scores, fewer irrelevant suggestions. Plus:
-- **Curated registry** — hand-picked, production-tested tool recommendations per stack, vetted by the Dispatch team (live now)
-- **Usage analytics dashboard** — see what task types you shift to most, which tools get recommended, session patterns over time
-- **Weekly digest** — new tools published to your stacks, surfaced before you go looking
-
-**BYOK (self-hosted):** Runs the full algorithm with your own Anthropic API key (Haiku 4.5). No data sharing, no curated picks, no network effect. Good for privacy-first setups.
-
-| Stage | Trigger | Model | Cost per call |
-|-------|---------|-------|--------------|
-| Shift detection | Every message | Haiku 4.5 | ~$0.000002 |
-| Plugin ranking (free / BYOK) | On shift only | Haiku 4.5 | ~$0.000006 |
-| Plugin ranking (Pro) | On shift only | Sonnet 4.6 | ~$0.000018 |
-
-**Typical session (10 messages, 2-3 shifts): less than $0.00005.** BYOK users pay API costs directly at these rates — a full month of heavy daily use costs less than a cent.
+The threshold is a 10-point gap. If the best marketplace alternative scores 72 and Claude's tool scores 64, Dispatch blocks. If the gap is 9 points or less, it passes through silently.
 
 ---
 
-## Getting the most out of Dispatch
+## How the scoring works
 
-Dispatch recommends from whatever you have installed. The more plugins you have, the better it gets.
+When Hook 2 intercepts a tool call, it:
 
-**Add the official marketplaces in Claude Code:**
+1. Reads the current task category from state (written by Hook 1 on the last detected shift)
+2. Searches the marketplace for tools matching that category's keywords
+3. Scores each result 0–100 for relevance to the specific task — considering tool name, description, and the task context
+4. Scores Claude's chosen tool on the same scale
+5. Blocks if the top result beats Claude's score by 10+, passes through otherwise
+
+**Free/BYOK** — hits the live [skills.sh](https://skills.sh) marketplace on each intercept (~2–4s)
+
+**Pro** — pulls from a pre-ranked catalog built by a daily crawl across npm, skills.sh, and Claude plugin registries, scored by Haiku during the crawl. Intercept response is <200ms.
+
+---
+
+## Get more out of it
+
+Dispatch recommends from the full marketplace — installed or not. But its scores improve with better tool descriptions. Add the official marketplaces to give it more signal:
 
 ```
 /plugins add anthropics/claude-plugins-official
 /plugins add ananddtyagi/claude-code-marketplace
 ```
 
-**Add official stack-specific skills:**
+Browse for skills relevant to your stack:
 
 ```bash
-# Firebase
-npx skills add firebase/agent-skills@firebase-firestore-basics -y
-npx skills add firebase/agent-skills@firebase-auth-basics -y
-npx skills add firebase/agent-skills@firebase-basics -y
-
-# Supabase
-npx skills add supabase/agent-skills@supabase-postgres-best-practices -y -g
+npx skills find flutter
+npx skills find supabase
+npx skills find react
 ```
 
-**Browse the full registry:**
-- [skills.sh](https://skills.sh) — 500+ skills (`npx skills find <query>`)
-- [VoltAgent/awesome-agent-skills](https://github.com/VoltAgent/awesome-agent-skills) — curated list
+The more skills in the registry that match your work, the more often Dispatch has something useful to surface.
 
 ---
 
-## How it works
+## How the categories work
 
-Dispatch fires when you shift to a new **action mode** or a new **domain** — whichever comes first.
+Dispatch uses 16 MECE categories to route marketplace searches — things like `mobile-development`, `frontend-web`, `devops-infra`, `data-science`. When Haiku detects a shift, it generates a specific task type label like `flutter-fixing` or `nextjs-building`, then maps that label to a category. The category drives the marketplace search, which is more targeted than keyword-splitting the task type directly.
 
-**Action modes** (7 MECE categories):
-
-| Mode | You're... |
-|---|---|
-| `discovering` | Researching, exploring, learning something new |
-| `designing` | Planning, architecting, deciding on approach |
-| `building` | Writing new code, implementing features |
-| `fixing` | Debugging, diagnosing errors, tracing failures |
-| `validating` | Testing, reviewing, verifying correctness |
-| `shipping` | Deploying, releasing, going live |
-| `maintaining` | Refactoring, cleaning up, paying down tech debt |
-
-Moving from `flutter-building` to `flutter-fixing` triggers a shift. So does moving from `flutter` to `supabase`. Both get you the right tools at the right time.
-
-Detection uses Claude Haiku with semantic understanding — not keywords. *"This blows up with a null"* → `fixing`. *"Let me sanity check this"* → `validating`.
-
-**Stage 1 — Classification (every message, ~100ms)**
-
-Haiku receives your last 3 messages and current working directory. Returns `{"shift": bool, "domain": str, "mode": str, "task_type": str, "confidence": float}`. If no shift or confidence below 0.7, exits silently — you never see it.
-
-**Smart skipping** — messages of 2 words or fewer skip classification entirely.
-
-**Stage 2 — Evaluation (on confirmed shift only)**
-
-Scans `~/.claude/plugins/marketplaces/` for installed plugins, runs `npx skills list` for agent skills, searches the registry for uninstalled matches. Haiku ranks all of them together — installed and uninstalled as one pool — assigning a 0-100 relevance score for your specific task. Only tools scoring 40+ are shown. Top 6 maximum.
-
-**A note on recommendation accuracy:** Installed plugins are ranked using their full descriptions, so reasons are grounded. Uninstalled registry skills are ranked from their skill ID alone (e.g., `firebase/agent-skills@firebase-firestore-basics`) — reasons for those are inferred from the name, not a full description, so treat them as directional rather than precise. The more plugins you have installed, the sharper the recommendations.
+Unknown task types are logged to `unknown_categories.jsonl` in the skill-router directory — if you're working in a niche stack and Dispatch consistently misses, that file tells you why.
 
 ---
 
-## Supported task types
+## Stack detection
 
-Any. Dispatch doesn't use a fixed list — it generates the most specific label it can from your conversation and uses that to search the live skills registry. If a skill exists for what you're doing, Dispatch will find it.
+On install, and again whenever you change working directories, Dispatch scans your project's manifest files (`package.json`, `requirements.txt`, `go.mod`, `Cargo.toml`, `pubspec.yaml`, etc.) to build a stack profile. Pro users' catalog results are reranked using this profile — a Flutter project gets `flutter-mobile-app-dev` ranked higher than a generic mobile tool even if their base scores are similar.
 
-Examples of what it detects: `flutter-building` · `flutter-fixing` · `react-building` · `nextjs-shipping` · `supabase-fixing` · `firebase-building` · `python-building` · `docker-shipping` · `aws-devops` · `stripe-building` · `github-actions-shipping` · and anything else in the registry.
-
-As new skills get published to [skills.sh](https://skills.sh), Dispatch picks them up automatically — no updates required.
+The stack profile lives at `~/.claude/skill-router/stack_profile.json` and updates automatically.
 
 ---
 
 ## Troubleshooting
 
-**Dispatch isn't firing**
-- Start a **new** Claude Code session after install
-- Verify your key: `echo $ANTHROPIC_API_KEY`
-- Check it's registered: look for `UserPromptSubmit` in `~/.claude/settings.json`
+**Dispatch isn't intercepting anything**
+- Start a **new** Claude Code session after install — hooks load at startup
+- Check both hooks are registered: look for `UserPromptSubmit` and `PreToolUse` entries in `~/.claude/settings.json`
+- Verify your key or token: `cat ~/.claude/skill-router/config.json`
 
-**UI shows but no recommendations**
-- Install more plugins — see [Getting the most out of Dispatch](#getting-the-most-out-of-dispatch)
-- The detected task type may not match any installed plugins yet
+**Dispatch fires but passes everything through**
+- This is correct behavior most of the time — it only blocks when the gap is 10+ points
+- If marketplace search returns nothing, there's nothing to compare against
 
-**Hook takes a long time**
-- 10 second hard timeout — Claude proceeds normally if exceeded
-- Check your internet connection (registry search requires network)
+**Hook is slow**
+- 10s hard timeout — Claude proceeds normally if exceeded
+- Pro catalog responses are <200ms; BYOK/Free search takes 2–4s
+
+**"Degraded mode" warning during install**
+- The `anthropic` package installed but Python can't import it (common on system Python with PEP 668 restrictions)
+- Fix: `pip3 install anthropic --break-system-packages` or use a virtualenv
 
 ---
 
@@ -265,83 +223,64 @@ As new skills get published to [skills.sh](https://skills.sh), Dispatch picks th
 ```bash
 rm -rf ~/.claude/skill-router
 rm ~/.claude/hooks/skill-router.sh
+rm ~/.claude/hooks/preuse-hook.sh
 ```
 
-Then remove the `UserPromptSubmit` entry from `~/.claude/settings.json`.
-
----
-
-## Contributing
-
-This is an early release. The most valuable thing you can do is use it and report back.
-
-Open an Issue with:
-- What task type triggered Dispatch
-- Whether the recommendations were relevant
-- Any errors you saw
-
-Pull requests welcome. The classifier taxonomy and evaluator ranking logic are the best places to start.
-
----
-
-## Roadmap
-
-- [x] Caching layer for plugin registry (reduce npx latency)
-- [x] Hosted endpoint — no API key required (live at dispatch.visionairy.biz)
-- [x] Open-ended task type taxonomy — Haiku generates specific labels, not a fixed list
-- [ ] `/dispatch status` command to inspect current state
-- [ ] skills.sh distribution
-
----
-
-## Why this exists
-
-Other tools in this space — like SummonAI — charge $100 to write custom skills tailored to your current stack. That's a great product if you know exactly what you need and want it built for you.
-
-Dispatch is a different bet entirely.
-
-Instead of building tools for a fixed stack, Dispatch finds the best tools for whatever you're doing right now — across any stack, any task, mid-session. Already have Flutter skills installed? It surfaces them when you switch to a Flutter task. Want to know if there's a better Supabase skill than the one you're using? It checks the registry before you even think to ask.
-
-It doesn't care what your stack is. It cares what you're doing in the next five minutes.
-
-The Claude Code plugin ecosystem is genuinely underutilized. Most developers install a handful of plugins and forget the rest exist. Dispatch is the runtime layer that was missing — a router that knows your context and connects you to the right tools automatically.
-
-The code is open source. Run it yourself if you want — it works. But the hosted version knows something your local copy doesn't: what tools thousands of other developers reach for when they're doing exactly what you're doing right now. That gap widens every day.
-
-Built because I needed it. Shared because you probably do too.
-
-This is a vibe coding project — I built Dispatch for myself over a weekend using Claude Code, then cleaned it up enough to share. If you're getting serious about AI tooling, check out [Vib8](https://www.vib8ai.com) — a prompt engineering and optimization platform for 100+ AI tools that pairs well with what Dispatch does inside Claude Code.
+Then remove the `UserPromptSubmit` and `PreToolUse` entries from `~/.claude/settings.json`.
 
 ---
 
 ## Security
 
-Dispatch was designed to be auditable and minimal:
-
-- **No `~/.claude/CLAUDE.md` modification** — install.sh does not touch your global Claude instructions. Recommendations surface via Claude Code's native hook context injection.
-- **No credential harvesting** — Dispatch reads only `ANTHROPIC_API_KEY` from your environment. It does not read other tool config files (e.g., `.mcp.json`).
-- **No shell injection** — task type labels are always passed as `sys.argv`, never interpolated into shell strings.
-- **Open source** — every line of `dispatch.sh`, `classifier.py`, and `evaluator.py` is in this repo. Verify what runs on your machine before installing.
-- **10-second hard timeout** — Claude Code enforces a 10s limit on the hook. Dispatch cannot block or hang your session.
+- **No `~/.claude/CLAUDE.md` modification** — Dispatch doesn't touch your global Claude instructions
+- **No credential harvesting** — reads only `ANTHROPIC_API_KEY` from your environment
+- **No shell injection** — task type labels always passed as `sys.argv`, never interpolated into shell strings
+- **Open source** — every line of both hooks and all Python modules is in this repo; verify before installing
+- **10-second hard timeout** — enforced by Claude Code; Dispatch cannot hang your session
 
 ---
 
 ## Privacy
 
-**Self-hosted (BYOK):** Haiku API calls go directly from your machine to Anthropic. No data passes through our servers, ever.
+**BYOK:** Haiku calls go directly from your machine to Anthropic. Nothing passes through our servers.
 
-**Hosted:** Your current message and working directory are sent to dispatch.visionairy.biz for classification. This data is passed to Claude Haiku and immediately discarded — we do not store conversation content. We store only your GitHub username, email, usage count, and detected task types (e.g., `flutter-fixing`). We will never sell individual data. Aggregate patterns may be used to improve recommendations in anonymized form.
-
-You'll always have the self-hosted option with zero data leaving your machine.
+**Hosted:** Your last ~3 messages and working directory are sent to dispatch.visionairy.biz for classification. We pass this to Haiku and discard it — we don't store conversation content. We store: GitHub username, email, usage count, and task type labels. We don't sell individual data. Aggregate patterns may improve recommendations in anonymized form. You can switch to BYOK mode at any time for zero data sharing.
 
 ---
 
-## Support
+## Contributing
 
-Free plan gives you 8 detections/day — enough to evaluate whether Dispatch fits your workflow across multiple sessions.
+Open source, MIT licensed. The classifier taxonomy and category mapping are the most impactful places to contribute — better category coverage means better marketplace routing for everyone.
 
-If it does, [upgrade to Pro for $10/month](https://dispatch.visionairy.biz/pro). Unlimited detections + Sonnet-quality ranking, and you're contributing to the data pool that makes recommendations sharper for everyone. The more Pro users, the better the signal.
+Open an issue with:
+- What task type Dispatch detected
+- Whether the recommendations were relevant
+- Stack you were working in
 
-You can also fork it, run it with your own API key, and never pay a cent. The code is open — the value is in the service. If you'd rather just say thanks, [buy me a coffee](https://github.com/sponsors/VisionAIrySE).
+Pull requests welcome.
 
-Star it if it helps. Share it if someone else would use it.
+---
+
+## Why this exists
+
+The Claude Code plugin ecosystem is genuinely underutilized. Most developers install a handful of tools and forget the rest exist. The problem isn't that good tools aren't available — it's that you have to already know what you need, and remember to reach for it, mid-session, while you're focused on something else.
+
+Dispatch is the runtime layer that was missing. It knows what you're doing because it reads your conversation. It knows what's available because it searches the marketplace. It connects them automatically, and only bothers you when it actually has something better.
+
+Run it with your own key if you want — it works. The hosted version knows something your local copy doesn't: what tools other developers reach for when they're doing exactly what you're doing right now. That signal compounds over time.
+
+Built by [Visionairy](https://visionairy.biz). If you're getting serious about AI developer tooling, also check out [Vib8](https://vib8.ai) — AI-powered competitive intelligence for founders.
+
+---
+
+## Roadmap
+
+- [x] Hosted endpoint (dispatch.visionairy.biz)
+- [x] PreToolUse interception — blocks on 10+ point gap
+- [x] Category-first routing — 16 MECE categories
+- [x] Pre-ranked catalog — daily cron, <200ms Pro responses
+- [x] Stack detection — auto-detects languages/frameworks from manifest files
+- [x] Pro dashboard — interception history, block rate, quota
+- [ ] `/dispatch status` command
+- [ ] skills.sh distribution (`npx skills add VisionAIrySE/Dispatch`)
+- [ ] Weekly new-tool digest for Pro users
