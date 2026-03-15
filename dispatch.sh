@@ -53,14 +53,21 @@ except:
 
 if [ "$FIRST_RUN" = "yes" ]; then
     python3 -c "
-import json
+import json, os, tempfile
+state_file = '$STATE_FILE'
 try:
-    d = json.load(open('$STATE_FILE'))
+    d = json.load(open(state_file))
 except:
     d = {}
 d['first_run'] = False
-with open('$STATE_FILE', 'w') as f:
-    json.dump(d, f)
+dir_ = os.path.dirname(os.path.abspath(state_file))
+fd, tmp = tempfile.mkstemp(dir=dir_)
+try:
+    with os.fdopen(fd, 'w') as f: json.dump(d, f)
+    os.rename(tmp, state_file)
+except Exception:
+    try: os.unlink(tmp)
+    except: pass
 " 2>/dev/null || true
     echo "[Dispatch is active and monitoring your session. It will surface better tools when it detects a task shift. No action needed — it runs silently in the background.]"
 fi
@@ -179,7 +186,7 @@ print(json.dumps({'transcript': transcript, 'cwd': cwd, 'last_task_type': last_t
         # Suppress notice for 5 triggers after first display
         if [ "$LIMIT_COOLDOWN" -gt 0 ]; then
             python3 -c "
-import json, sys
+import json, sys, os, tempfile
 from datetime import datetime
 state_file, task_type = sys.argv[1], sys.argv[2]
 try:
@@ -189,8 +196,14 @@ except Exception:
 d['limit_cooldown'] = max(0, int(d.get('limit_cooldown', 1)) - 1)
 d['last_task_type'] = task_type
 d['last_updated'] = datetime.now().isoformat()
-with open(state_file, 'w') as f:
-    json.dump(d, f)
+dir_ = os.path.dirname(os.path.abspath(state_file))
+fd, tmp = tempfile.mkstemp(dir=dir_)
+try:
+    with os.fdopen(fd, 'w') as f: json.dump(d, f)
+    os.rename(tmp, state_file)
+except Exception:
+    try: os.unlink(tmp)
+    except: pass
 " "$STATE_FILE" "${LAST_TASK_TYPE:-}" 2>/dev/null || true
             exit 0
         fi
@@ -213,7 +226,7 @@ $SEP
 $SEP"
         # Set cooldown: suppress for next 5 triggers
         python3 -c "
-import json, sys
+import json, sys, os, tempfile
 from datetime import datetime
 state_file, task_type = sys.argv[1], sys.argv[2]
 try:
@@ -223,8 +236,14 @@ except Exception:
 d['limit_cooldown'] = 5
 d['last_task_type'] = task_type
 d['last_updated'] = datetime.now().isoformat()
-with open(state_file, 'w') as f:
-    json.dump(d, f)
+dir_ = os.path.dirname(os.path.abspath(state_file))
+fd, tmp = tempfile.mkstemp(dir=dir_)
+try:
+    with os.fdopen(fd, 'w') as f: json.dump(d, f)
+    os.rename(tmp, state_file)
+except Exception:
+    try: os.unlink(tmp)
+    except: pass
 " "$STATE_FILE" "${LAST_TASK_TYPE:-}" 2>/dev/null || true
         exit 0
     fi
@@ -233,7 +252,7 @@ with open(state_file, 'w') as f:
     if [ "$HTTP_CODE" = "401" ]; then
         if [ "$AUTH_COOLDOWN" -gt 0 ]; then
             python3 -c "
-import json, sys
+import json, sys, os, tempfile
 from datetime import datetime
 state_file = sys.argv[1]
 try:
@@ -242,8 +261,14 @@ except Exception:
     d = {}
 d['auth_invalid_cooldown'] = max(0, int(d.get('auth_invalid_cooldown', 1)) - 1)
 d['last_updated'] = datetime.now().isoformat()
-with open(state_file, 'w') as f:
-    json.dump(d, f)
+dir_ = os.path.dirname(os.path.abspath(state_file))
+fd, tmp = tempfile.mkstemp(dir=dir_)
+try:
+    with os.fdopen(fd, 'w') as f: json.dump(d, f)
+    os.rename(tmp, state_file)
+except Exception:
+    try: os.unlink(tmp)
+    except: pass
 " "$STATE_FILE" 2>/dev/null || true
             exit 0
         fi
@@ -255,7 +280,7 @@ $SEP
  Re-authenticate: $DISPATCH_ENDPOINT/token-lookup
 $SEP"
         python3 -c "
-import json, sys
+import json, sys, os, tempfile
 from datetime import datetime
 state_file = sys.argv[1]
 try:
@@ -264,8 +289,14 @@ except Exception:
     d = {}
 d['auth_invalid_cooldown'] = 5
 d['last_updated'] = datetime.now().isoformat()
-with open(state_file, 'w') as f:
-    json.dump(d, f)
+dir_ = os.path.dirname(os.path.abspath(state_file))
+fd, tmp = tempfile.mkstemp(dir=dir_)
+try:
+    with os.fdopen(fd, 'w') as f: json.dump(d, f)
+    os.rename(tmp, state_file)
+except Exception:
+    try: os.unlink(tmp)
+    except: pass
 " "$STATE_FILE" 2>/dev/null || true
         exit 0
     fi
@@ -360,7 +391,7 @@ print(' | '.join(recent))
 
 # Write task_type + context + cwd to state — preuse_hook.sh reads these
 python3 -c "
-import json, sys
+import json, sys, os, tempfile
 from datetime import datetime
 state_file, task_type, category, context_snippet, cwd = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5]
 try:
@@ -372,8 +403,14 @@ d['last_category'] = category
 d['last_context_snippet'] = context_snippet
 d['last_cwd'] = cwd
 d['last_updated'] = datetime.now().isoformat()
-with open(state_file, 'w') as f:
-    json.dump(d, f)
+dir_ = os.path.dirname(os.path.abspath(state_file))
+fd, tmp = tempfile.mkstemp(dir=dir_)
+try:
+    with os.fdopen(fd, 'w') as f: json.dump(d, f)
+    os.rename(tmp, state_file)
+except Exception:
+    try: os.unlink(tmp)
+    except: pass
 " "$STATE_FILE" "$TASK_TYPE" "$CATEGORY" "$CONTEXT_SNIPPET" "$CWD" 2>/dev/null || true
 
 # ── Trigger stack rescan if cwd changed ──────────────────────────────────

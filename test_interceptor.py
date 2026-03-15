@@ -268,5 +268,64 @@ class TestLastSuggestedTracking(unittest.TestCase):
         assert result is False
 
 
+class TestAtomicWrite(unittest.TestCase):
+    """State file writes must be atomic — no partial/corrupt JSON on crash."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.state_file = os.path.join(self.tmp, "state.json")
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_write_last_suggested_uses_atomic_write(self):
+        """write_last_suggested must go through _atomic_write."""
+        import interceptor
+        calls = []
+        orig = interceptor._atomic_write
+        def tracked(*a, **kw):
+            calls.append(a[0])
+            return orig(*a, **kw)
+        with patch.object(interceptor, "_atomic_write", tracked):
+            interceptor.write_last_suggested("owner/repo@skill", state_file=self.state_file)
+        assert len(calls) == 1
+
+    def test_clear_last_suggested_uses_atomic_write(self):
+        """clear_last_suggested must go through _atomic_write."""
+        import interceptor
+        interceptor.write_last_suggested("owner/repo@skill", state_file=self.state_file)
+        calls = []
+        orig = interceptor._atomic_write
+        def tracked(*a, **kw):
+            calls.append(a[0])
+            return orig(*a, **kw)
+        with patch.object(interceptor, "_atomic_write", tracked):
+            interceptor.clear_last_suggested(state_file=self.state_file)
+        assert len(calls) == 1
+
+    def test_write_bypass_uses_atomic_write(self):
+        """write_bypass must go through _atomic_write."""
+        import interceptor
+        calls = []
+        orig = interceptor._atomic_write
+        def tracked(*a, **kw):
+            calls.append(a[0])
+            return orig(*a, **kw)
+        with patch.object(interceptor, "_atomic_write", tracked):
+            interceptor.write_bypass.__globals__["STATE_FILE"] = self.state_file
+            interceptor.write_bypass("Skill")
+        assert len(calls) == 1
+
+    def test_state_file_valid_json_after_write(self):
+        """State file must contain valid JSON after any write operation."""
+        import interceptor
+        interceptor.write_last_suggested("owner/repo@skill", state_file=self.state_file)
+        with open(self.state_file) as f:
+            data = json.load(f)
+        assert isinstance(data, dict)
+        assert data["last_suggested"] == "owner/repo@skill"
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,5 +1,6 @@
 import json
 import os
+import tempfile
 import time
 
 STATE_FILE = os.path.expanduser("~/.claude/skill-router/state.json")
@@ -10,6 +11,26 @@ ALERT_MIN_SCORE = 80
 # Tool names that are worth intercepting (exact match or prefix)
 _INTERCEPTABLE_NAMES = frozenset({"Skill", "Agent"})
 _INTERCEPTABLE_PREFIXES = ("mcp__",)
+
+
+def _atomic_write(path: str, data: dict) -> None:
+    """Write data as JSON to path atomically using a temp file and os.rename.
+
+    If the process is killed mid-write, the original file is untouched.
+    os.rename on the same filesystem is atomic on POSIX.
+    """
+    dir_ = os.path.dirname(os.path.abspath(path))
+    fd, tmp = tempfile.mkstemp(dir=dir_)
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(data, f)
+        os.rename(tmp, path)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except Exception:
+            pass
+        raise
 
 
 def should_intercept(tool_name: str) -> bool:
@@ -55,8 +76,7 @@ def clear_bypass(tool_name: str):
             d = json.load(f)
         if d.get("bypass", {}).get("tool_name") == tool_name:
             d.pop("bypass", None)
-            with open(STATE_FILE, "w") as f:
-                json.dump(d, f)
+            _atomic_write(STATE_FILE, d)
     except Exception:
         pass
 
@@ -73,8 +93,7 @@ def write_bypass(tool_name: str):
             "tool_name": tool_name,
             "expires": time.time() + BYPASS_TTL
         }
-        with open(STATE_FILE, "w") as f:
-            json.dump(d, f)
+        _atomic_write(STATE_FILE, d)
     except Exception:
         pass
 
@@ -133,8 +152,7 @@ def mark_alert_seen(tool_name: str, seen_file: str = None):
         seen.add(tool_name)
         data["seen"] = list(seen)
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w") as f:
-            json.dump(data, f)
+        _atomic_write(path, data)
     except Exception:
         pass
 
@@ -166,8 +184,7 @@ def write_last_suggested(tool_name: str, state_file: str = None) -> None:
         except Exception:
             state = {}
         state["last_suggested"] = tool_name
-        with open(path, "w") as f:
-            json.dump(state, f)
+        _atomic_write(path, state)
     except Exception:
         pass
 
@@ -189,8 +206,7 @@ def clear_last_suggested(state_file: str = None) -> None:
         with open(path) as f:
             state = json.load(f)
         state.pop("last_suggested", None)
-        with open(path, "w") as f:
-            json.dump(state, f)
+        _atomic_write(path, state)
     except Exception:
         pass
 
