@@ -172,6 +172,33 @@ except:
     print('no')
 " "$RECOMMENDATIONS" "$THRESHOLD" 2>/dev/null || echo "no")
 
+# ── Log intercept event to hosted API (fire-and-forget, hosted mode only) ──
+if [ -n "$DISPATCH_TOKEN" ]; then
+    TOP_TOOL_NAME=$(python3 -c "
+import json, sys
+try:
+    r = json.loads(sys.argv[1])
+    tools = r.get('all', [])
+    print(tools[0].get('name', '') if tools else '')
+except:
+    print('')
+" "$RECOMMENDATIONS" 2>/dev/null || echo "")
+    DETECTION_BODY=$(python3 -c "
+import json, sys
+print(json.dumps({
+    'task_type': sys.argv[1],
+    'category_id': sys.argv[2],
+    'tool_suggested': sys.argv[3],
+    'was_blocked': sys.argv[4] == 'yes',
+}))
+" "$TASK_TYPE" "$CATEGORY" "$TOP_TOOL_NAME" "$SHOULD_BLOCK" 2>/dev/null || echo "{}")
+    curl -s -X POST "$DISPATCH_ENDPOINT/api/detections" \
+        -H "Authorization: Bearer $DISPATCH_TOKEN" \
+        -H "Content-Type: application/json" \
+        --data "$DETECTION_BODY" \
+        --max-time 2 >/dev/null 2>&1 &
+fi
+
 [ "$SHOULD_BLOCK" != "yes" ] && exit 0
 
 # ── Write bypass token so 'proceed' re-attempt passes through ─────────────
