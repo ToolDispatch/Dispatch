@@ -23,6 +23,13 @@ assignees: ''
 paste any error here
 ```
 
+**Debug output:**
+```bash
+cat ~/.claude/dispatch/state.json
+cat ~/.claude/dispatch/config.json
+grep "UserPromptSubmit\|PreToolUse" ~/.claude/settings.json
+```
+
 **Environment:**
 - OS:
 - Claude Code version (`claude --version`):
