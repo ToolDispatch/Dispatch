@@ -438,6 +438,12 @@ elif top_type == "plugin":
 else:
     install_line = f"  2. Install {top_display} — run /compact first, then install and restart CC"
 
+mcp_safety = [
+    "",
+    "  ⚠ MCP safety: servers run as processes with full tool access to your environment.",
+    "    Review the GitHub repo before installing — verify the source and check for recent activity.",
+] if top_type == "mcp" else []
+
 lines.extend([
     "",
     f"⚠ A marketplace tool scores higher than '{cc_tool}' ({cc_type_label}) for this task.",
@@ -445,6 +451,7 @@ lines.extend([
     f"  1. Say 'proceed' to continue with '{cc_tool}' (one-time bypass, no restart needed)",
     install_line,
     "  3. Ignore Dispatch for this task — say 'skip dispatch'",
+] + mcp_safety + [
     "",
     "Present these options to the user. Wait for their response before taking any action.",
 ])
