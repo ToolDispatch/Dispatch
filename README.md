@@ -82,7 +82,7 @@ Start a **new** Claude Code session after install — hooks load at session star
 
 ### Pro — $10/month
 
-> **Founding Dispatcher offer:** First 250 subscribers lock in **$6/month for life**. After 250, standard rate applies.
+> **Founding Dispatcher offer:** First 300 subscribers lock in **$6/month for life**. After 300, standard rate applies.
 
 [Upgrade at dispatch.visionairy.biz/pro](https://dispatch.visionairy.biz/pro)
 
@@ -108,7 +108,7 @@ Dispatch runs entirely locally. No account, no data leaves your machine. You los
 
 | | Free | Pro | BYOK |
 |---|---|---|---|
-| **Interceptions/day** | 5 | Unlimited | Unlimited |
+| **Interceptions/day** | 8 | Unlimited | Unlimited |
 | **Ranking model** | Haiku | Sonnet | Haiku |
 | **Catalog** | Live search | Pre-ranked + network signal | Live search only |
 | **Dashboard** | — | ✓ | — |

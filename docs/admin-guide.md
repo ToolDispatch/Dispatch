@@ -182,6 +182,18 @@ gunicorn app:app --worker-class gthread --workers 2 --threads 4 --timeout 30
 | `VisionAIrySE/Dispatch` | Client — hooks, classifier, evaluator, install script |
 | `VisionAIrySE/Dispatch-API` | Server — Flask API, DB, cron, dashboards |
 
+### Client Modules (installed to `~/.claude/dispatch/`)
+
+| Module | Purpose |
+|--------|---------|
+| `classifier.py` | Haiku shift detection — reads CC transcript, emits task type + preferred tool type |
+| `evaluator.py` | Marketplace search + Haiku ranking — `search_by_category()`, `rank_recommendations()` |
+| `interceptor.py` | PreToolUse logic — bypass token, state readers, tool type detection |
+| `category_mapper.py` | Maps Haiku-generated task type labels to one of 16 MECE categories |
+| `categories.json` | MECE category catalog with `search_terms` (skills.sh) and `mcp_search_terms` (glama.ai) |
+| `llm_client.py` | LLM-agnostic adapter — OpenRouter-first (free tier uses llama-3.1-8b-instruct:free), falls back to Anthropic BYOK, noop on failure |
+| `stack_scanner.py` | Detects languages, frameworks, tools, and MCP servers from project manifest files and `.mcp.json`; result stored in `stack_profile.json` |
+
 Both have GitHub Actions CI (`.github/workflows/tests.yml`) that runs on push/PR to `main`. Requires `ANTHROPIC_API_KEY` secret set in each repo's Settings → Secrets → Actions.
 
 ---

@@ -162,7 +162,7 @@ Working correctly. Dispatch only blocks when a marketplace alternative scores 10
 
 **I'm getting too many intercepts**
 
-Say `skip dispatch` to suppress for the rest of the session. Or increase the gap threshold by editing `SCORE_GAP_THRESHOLD` in `~/.claude/hooks/dispatch-preuse.sh` (default: 10).
+Say `skip dispatch` to suppress for the rest of the session. Or increase the gap threshold by editing `THRESHOLD` in `~/.claude/hooks/dispatch-preuse.sh` (default: 10).
 
 **Slow intercepts (2–4 seconds)**
 

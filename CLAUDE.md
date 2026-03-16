@@ -60,7 +60,7 @@ Two-hook pipeline:
 | `test_evaluator.py` | 56 unit tests for evaluator |
 | `test_interceptor.py` | 62 unit tests for interceptor |
 | `test_category_mapper.py` | 13 unit tests for category_mapper |
-| `test_llm_client.py` | 12 unit tests for llm_client |
+| `test_llm_client.py` | 14 unit tests for llm_client |
 | `test_stack_scanner.py` | 20 unit tests for stack_scanner |
 
 **Installed location:** `~/.claude/dispatch/` (classifier.py, evaluator.py, interceptor.py, category_mapper.py, categories.json)
@@ -125,7 +125,7 @@ cd /home/visionairy/Dispatch
 python3 -m pytest test_classifier.py test_evaluator.py test_interceptor.py test_category_mapper.py test_llm_client.py test_stack_scanner.py -v
 ```
 
-All 187 tests must pass before pushing (23 classifier + 56 evaluator + 62 interceptor + 13 category_mapper + 13 llm_client + 20 stack_scanner).
+All 188 tests must pass before pushing (23 classifier + 56 evaluator + 62 interceptor + 13 category_mapper + 14 llm_client + 20 stack_scanner).
 
 **Live test:** Requires a new CC session. Cannot simulate UserPromptSubmit or PreToolUse from inside a session.
 

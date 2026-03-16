@@ -4,6 +4,99 @@ All notable changes to Dispatch are documented here.
 
 ---
 
+## v0.9.1 — 2026-03-15
+
+### Added
+
+- **`/dispatch status` skill** — shows mode, plan, token (masked), hook install state, last task type, category, working dir, and bypass token status.
+- **Conversion tracking** — `write_last_suggested` records the tool Dispatch recommended; `was_installed` events fire when the user installs that tool. Feeds Pro dashboard.
+- **Creator outreach** — daily catalog cron opens GitHub Issues on undescribed skills (max 1/repo/30 days) asking creators to add a description.
+- **Slack notifications** — signup, upgrade, downgrade, conversion, and daily cron completion events fire to `#dispatch-log`.
+- **Admin dashboard** — CC Weakness Map (avg CC score vs market score by category), MRR, user table, top task types, top installed tools, creator outreach count.
+- **User dashboard (Pro)** — interception history, block rate, top suggested tools, install conversion tracking.
+
+### Fixed
+
+- Atomic writes for all `state.json` mutations (BUG-001/003).
+- `dispatch-preuse.sh` and `dispatch.sh` were writing/reading `state.json` in different directories. Fixed by syncing installed hook path to `~/.claude/dispatch/`.
+- `_strip_fences` now handles newline-separated JSON markers.
+
+---
+
+## v0.9.0 — 2026-03-14
+
+### Added
+
+- **Two-tier ranking** — Pro users get pre-ranked catalog results (<200ms). Free/BYOK users get live marketplace search (~2–4s).
+- **Bypass event logging** — when user says "proceed", the bypass is logged to `/api/detections` in hosted mode for analytics.
+- `npx` subprocess replaced with skills.sh HTTP API in `_search_one_term` — removes Node.js dependency from the ranking hot path.
+
+---
+
+## v0.8.0 — 2026-03-13
+
+### Added
+
+- **MCP/plugin tool type system** — Dispatch now distinguishes `skill`, `mcp`, and `agent` tool types. Classifier emits `preferred_tool_type` hint. `interceptor.py` tracks `last_cc_tool_type`. Scoring is type-aware.
+- **Glama.ai MCP search** — `evaluator.py` searches glama.ai for MCP servers using `mcp_search_terms` from `categories.json` (service vocabulary like `postgres`, `github` rather than task names).
+- **Official + community plugins** — evaluator searches the official Claude plugin registry and community plugins. Prefixes: `plugin:anthropic:name`, `plugin:cc-marketplace:name`.
+- **`llm_client.py`** — LLM-agnostic adapter. OpenRouter-first (free tier uses `llama-3.1-8b-instruct:free` at $0 cost). Falls back to Anthropic BYOK. Noop on failure.
+- **`stack_scanner.py`** — detects languages, frameworks, tools, and MCP servers from manifest files (`package.json`, `requirements.txt`, `go.mod`, `Cargo.toml`, `pubspec.yaml`, etc.) and `.mcp.json`. Writes `stack_profile.json` to `~/.claude/dispatch/`.
+- **Stack-aware catalog filtering** — already-installed MCP servers are excluded from recommendations. Pro catalog results boosted by stack profile match.
+- **`normalize_tool_name_for_matching()`** in `interceptor.py` — handles conversion tracking across prefixed and unprefixed tool name formats.
+- **SKILL.md and `.claude-plugin/plugin.json`** — enables distribution via skills.sh marketplace and Claude plugin registry.
+- **`install.sh` hardening** — first-run indicator in `state.json`, `/dev/tty` fallback for terminal output, copies `llm_client.py` and `stack_scanner.py`.
+
+### Changed
+
+- `categories.json` extended with `mcp_search_terms` alongside existing `search_terms`.
+- `catalog_by_id` lookup handles both prefixed and unprefixed key formats.
+
+---
+
+## v0.7.0 — 2026-03-14
+
+### Added
+
+- **PreToolUse interception** — `preuse_hook.sh` fires before every Skill, Agent, or MCP tool call. If a marketplace alternative scores 10+ points higher than Claude's chosen tool, it blocks (exit 2) and shows the ranked comparison.
+- **Category-first model** — 16 MECE categories. Haiku generates a task type label; `category_mapper.py` maps it to a category. Marketplace search uses the category's `search_terms` rather than splitting the task type string directly.
+- **`category_mapper.py`** — keyword-based mapping from open-ended Haiku task labels to MECE category IDs. Unknown task types logged to `unknown_categories.jsonl`.
+- **`categories.json`** — MECE 16-category catalog with per-category search terms.
+- **`interceptor.py`** — PreToolUse tool parsing, bypass token (TTL 120s), state reader helpers.
+- **Bypass token** — written before exit 2; consumed on the next matching tool call so "proceed" passes through without re-blocking.
+
+### Changed
+
+- `dispatch.sh` is now silent — Stage 1 (Haiku classification) and state write only. All UI output moved to `preuse_hook.sh`.
+- `build_recommendation_list` is marketplace-only; `cc_score` passed through as baseline for comparison.
+
+---
+
+## v0.6.0 — 2026-03-08
+
+### Added
+
+- **Full discovery mode** — evaluator searches all 16 MECE category terms in parallel when no prior task state exists. Ensures cold-start sessions still surface relevant tools.
+- **Stack scanner improvements** — broader manifest file coverage, MCP server detection from `.mcp.json`.
+
+---
+
+## v0.5.0 — 2026-03-07
+
+### Added
+
+- **Multi-term compound task type search** — when Haiku returns a compound label like `docker-aws-github-actions`, all terms are searched against the registry and deduplicated. Previously only the primary term was used.
+- **MCP server scanning** — reads installed MCP servers from `.mcp.json` in the working directory. Already-installed MCPs excluded from recommendations.
+- **Score gap truncation** — 25-point cliff: if the best marketplace alternative scores more than 25 points above the next-best, the gap is truncated to prevent a single outlier dominating the list.
+- **Sonnet for Pro tier ranking** — Pro users get Sonnet scoring for sharper relevance judgements and better one-line reasons. Free/BYOK uses Haiku.
+- **Rich descriptions** — evaluator passes full tool descriptions (not just names) to the ranker. Reasons are grounded in actual tool capabilities.
+
+### Changed
+
+- Registry search now uses all category `search_terms` (up to 5 per category), deduplicated. More recall, same precision threshold.
+
+---
+
 ## v0.4.0 — 2026-03-07
 
 ### Added

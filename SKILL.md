@@ -42,20 +42,38 @@ Requires Python 3.8+ and Node.js (for `npx skills list`).
 ## How it works
 
 **Hook 1 — UserPromptSubmit** (`dispatch.sh`): Detects topic shifts using Claude
-Haiku (~100ms). On a confirmed shift, maps the task type to a MECE category,
-searches the plugin marketplace + MCP registry + skills catalog, scores all tools
-0–100, and writes state for Hook 2.
+Haiku (~100ms). On a confirmed shift, maps the task type to one of 16 MECE
+categories using `category_mapper.py`. Category drives the marketplace search —
+more targeted than keyword-splitting the task type directly. State is written for
+Hook 2. Silent — no output.
 
 **Hook 2 — PreToolUse** (`preuse_hook.sh`): Before Claude invokes a Skill, Agent,
-or MCP tool, checks if a better marketplace tool exists. If the top alternative
-scores ≥10 points higher than Claude's chosen tool, blocks (exit 2) and shows the
-recommendation. The user can type "proceed" to bypass.
+or MCP tool, searches the marketplace using the current task category, scores all
+results 0–100, and scores Claude's chosen tool on the same scale. If the top
+alternative scores ≥10 points higher, blocks (exit 2) and surfaces the ranked
+comparison. The user can type "proceed" to bypass (one-time, no restart needed).
+
+**Category-first routing**: 16 MECE categories (e.g. `mobile-development`,
+`frontend-web`, `devops-infra`, `data-science`). Haiku generates open-ended task
+type labels; the category model translates them into targeted search queries.
+Unknown task types are logged to `unknown_categories.jsonl`.
+
+**MCP server awareness**: Dispatch searches glama.ai for MCP servers alongside
+skills.sh for skills and the Claude plugin registries. Already-installed MCP
+servers (detected from `.mcp.json`) are excluded from recommendations — Dispatch
+only surfaces tools you don't already have.
+
+**Stack detection**: On each confirmed shift, Dispatch scans the project's manifest
+files (`package.json`, `requirements.txt`, `go.mod`, `Cargo.toml`, `pubspec.yaml`,
+etc.) to build a stack profile. Pro catalog results are reranked using this profile —
+a Flutter project gets Flutter-specific tools ranked higher than generic mobile
+tools with similar base scores.
 
 ## Modes
 
 | Mode | Requirement | Detections |
 |------|------------|-----------|
-| **Hosted** | Free token at dispatch.visionairy.biz | 8/day free, unlimited Pro ($10/mo — first 250 get $6/mo for life) |
+| **Hosted** | Free token at dispatch.visionairy.biz | 8/day free, unlimited Pro ($10/mo — first 300 get $6/mo for life) |
 | **BYOK** | `ANTHROPIC_API_KEY` set | Unlimited |
 
 ## Docs

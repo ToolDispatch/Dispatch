@@ -11,7 +11,7 @@ Thanks for your interest. Dispatch is a small, focused tool — contributions th
 Open an Issue with:
 - What you were doing when it happened
 - The task type Dispatch detected (or failed to detect)
-- Any error output from `~/.claude/hooks/skill-router.sh`
+- Any error output from `~/.claude/hooks/dispatch.sh` or `~/.claude/hooks/dispatch-preuse.sh`
 - Your OS, Python version, and whether you're using hosted or BYOK mode
 
 ### Classifier improvements
@@ -25,11 +25,11 @@ Good contributions here:
 
 To test classifier changes:
 ```bash
-cd ~/.claude/skill-router
+cd /path/to/Dispatch
 python3 -m pytest test_classifier.py -v
 ```
 
-All 19 tests must pass. Add a test for any new behavior.
+All 23 tests must pass. Add a test for any new behavior.
 
 ### Evaluator improvements
 
@@ -40,7 +40,7 @@ The evaluator (`evaluator.py`) handles plugin scanning and ranking. Good contrib
 
 To test:
 ```bash
-cd ~/.claude/skill-router
+cd /path/to/Dispatch
 python3 -m pytest test_evaluator.py -v
 ```
 
@@ -58,7 +58,7 @@ If a skill on [skills.sh](https://skills.sh) or a Claude Code marketplace is use
 1. Fork the repo
 2. Create a branch: `git checkout -b fix/your-description`
 3. Make your change — keep it focused, one thing per PR
-4. Run the test suite: `python3 -m pytest test_classifier.py test_evaluator.py -v`
+4. Run the test suite: `python3 -m pytest test_classifier.py test_evaluator.py test_interceptor.py test_category_mapper.py test_llm_client.py test_stack_scanner.py -v`
 5. All tests must pass before submitting
 6. Open a PR with a clear description of what changed and why
 
