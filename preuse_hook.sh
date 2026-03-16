@@ -379,20 +379,32 @@ if top_pick:
     tp_name = top_pick.get("name", "")
     if tp_name.startswith("mcp:"):
         top_display = tp_name[4:]
+        top_type = "mcp"
     elif tp_name.startswith("plugin:"):
         parts = tp_name.split(":", 2)
         top_display = parts[2] if len(parts) > 2 else tp_name
+        top_type = "plugin"
     else:
         top_display = tp_name
+        top_type = "skill"
 else:
     top_display = "the top tool"
+    top_type = "skill"
+
+# Install instruction varies by top tool type
+if top_type == "mcp":
+    install_line = f"  2. Configure {top_display} — add it to .mcp.json, then restart CC"
+elif top_type == "plugin":
+    install_line = f"  2. Install {top_display} plugin — run /compact first, then install and restart CC"
+else:
+    install_line = f"  2. Install {top_display} — run /compact first, then install and restart CC"
 
 lines.extend([
     "",
     f"⚠ A marketplace tool scores higher than '{cc_tool}' ({cc_type_label}) for this task.",
     "  Options:",
     f"  1. Say 'proceed' to continue with '{cc_tool}' (one-time bypass, no restart needed)",
-    f"  2. Install {top_display} — run /compact first, then install and restart CC",
+    install_line,
     "  3. Ignore Dispatch for this task — say 'skip dispatch'",
     "",
     "Present these options to the user. Wait for their response before taking any action.",

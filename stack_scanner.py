@@ -92,11 +92,13 @@ def _scan(cwd: str) -> dict:
                     frameworks.append("flutter")
 
     tools = _detect_tools(cwd)
+    mcp_servers = _detect_mcp_servers(cwd)
 
     return {
         "languages": languages,
         "frameworks": frameworks,
         "tools": tools,
+        "mcp_servers": mcp_servers,
         "scanned_at": _now(),
         "cwd": cwd,
     }
@@ -147,6 +149,29 @@ def _detect_tools(cwd: str) -> list:
         return []
 
 
+def _detect_mcp_servers(cwd: str) -> list:
+    """Read .mcp.json files and return list of configured MCP server names.
+
+    Checks user-global ~/.claude/.mcp.json and project-local {cwd}/.mcp.json.
+    Returns [] on any failure — never raises.
+    """
+    found = []
+    paths = [
+        os.path.expanduser("~/.claude/.mcp.json"),
+        os.path.join(cwd, ".mcp.json"),
+    ]
+    for path in paths:
+        try:
+            with open(path) as f:
+                data = json.load(f)
+            for name in data.get("mcpServers", {}):
+                if name not in found:
+                    found.append(name)
+        except Exception:
+            pass
+    return found
+
+
 def load_stack_profile(stack_file: str = None) -> dict:
     """Load existing stack profile from disk. Returns empty profile on failure."""
     path = stack_file or STACK_FILE
@@ -154,7 +179,7 @@ def load_stack_profile(stack_file: str = None) -> dict:
         with open(path) as f:
             return json.load(f)
     except Exception:
-        return {"languages": [], "frameworks": [], "tools": [], "cwd": ""}
+        return {"languages": [], "frameworks": [], "tools": [], "mcp_servers": [], "cwd": ""}
 
 
 def save_stack_profile(profile: dict, stack_file: str = None):

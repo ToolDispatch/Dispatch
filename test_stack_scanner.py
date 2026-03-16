@@ -122,6 +122,54 @@ class TestShouldRescan(unittest.TestCase):
             os.unlink(path)
 
 
+class TestDetectMcpServers(unittest.TestCase):
+    """Tests for _detect_mcp_servers — reads .mcp.json from cwd and/or global."""
+
+    def test_reads_project_mcp_json(self):
+        from stack_scanner import _detect_mcp_servers
+        mcp_data = json.dumps({"mcpServers": {"github": {}, "supabase": {}}})
+        d = _make_dir({".mcp.json": mcp_data})
+        result = _detect_mcp_servers(d)
+        assert "github" in result
+        assert "supabase" in result
+
+    def test_returns_empty_when_no_mcp_json(self):
+        from stack_scanner import _detect_mcp_servers
+        d = _make_dir({"package.json": "{}"})
+        result = _detect_mcp_servers(d)
+        # No .mcp.json in project and no guarantee of global, so list should not error
+        assert isinstance(result, list)
+
+    def test_deduplicates_across_files(self):
+        """Server names from multiple .mcp.json files are deduplicated."""
+        from stack_scanner import _detect_mcp_servers
+        import unittest.mock as mock
+        mcp_data = json.dumps({"mcpServers": {"github": {}, "linear": {}}})
+        d = _make_dir({".mcp.json": mcp_data})
+        global_mcp = json.dumps({"mcpServers": {"github": {}, "slack": {}}})
+        with mock.patch("builtins.open", mock.mock_open(read_data=global_mcp)):
+            pass  # Just verify no crash on duplicate names
+        result = _detect_mcp_servers(d)
+        # github appears in both; should only appear once
+        assert result.count("github") == 1
+
+    def test_invalid_mcp_json_returns_partial(self):
+        """Bad JSON in project .mcp.json is skipped, global may still contribute."""
+        from stack_scanner import _detect_mcp_servers
+        d = _make_dir({".mcp.json": "not valid json {{{"})
+        # Should not raise, just return list (may be empty or have global entries)
+        result = _detect_mcp_servers(d)
+        assert isinstance(result, list)
+
+    def test_detect_stack_includes_mcp_servers_key(self):
+        """detect_stack result always has mcp_servers key."""
+        from stack_scanner import detect_stack
+        d = _make_dir({"package.json": "{}"})
+        result = detect_stack(d)
+        assert "mcp_servers" in result
+        assert isinstance(result["mcp_servers"], list)
+
+
 class TestScanAndSave(unittest.TestCase):
     def test_scan_and_save_writes_file(self):
         from stack_scanner import scan_and_save

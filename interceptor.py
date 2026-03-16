@@ -224,9 +224,39 @@ def clear_last_suggested(state_file: str = None) -> None:
         pass
 
 
+def normalize_tool_name_for_matching(name: str) -> str:
+    """Normalize a tool name for conversion tracking comparison.
+
+    Bridges the format mismatch between stored last_suggested names and CC_TOOL labels:
+    - Stored "mcp:github"             ↔  CC_TOOL "github (create_pull_request)"
+    - Stored "plugin:anthropic:linear" ↔  CC_TOOL display name
+    - Stored "owner/repo@skill"        ↔  CC_TOOL "owner/repo@skill" (no change)
+    """
+    n = name.strip()
+    # Strip mcp: prefix
+    if n.startswith("mcp:"):
+        n = n[4:]
+    # Strip plugin: prefix variants — take the last :-delimited segment
+    elif n.startswith("plugin:"):
+        parts = n.split(":", 2)
+        n = parts[-1]
+    # Strip " (operation)" suffix from CC_TOOL "server (operation)" format
+    if " (" in n and n.endswith(")"):
+        n = n[: n.rfind(" (")]
+    return n.lower()
+
+
 def check_conversion(installed_names: list, state_file: str = None) -> bool:
-    """Return True if the last suggested tool is now in installed_names."""
+    """Return True if the last suggested tool matches any name in installed_names.
+
+    Uses normalized comparison so MCP tool names match regardless of whether
+    they're in "mcp:github" (stored) or "github (create_pull_request)" (CC_TOOL) format.
+    """
     last = get_last_suggested(state_file=state_file)
     if not last:
         return False
-    return last in installed_names
+    last_norm = normalize_tool_name_for_matching(last)
+    for name in installed_names:
+        if name == last or normalize_tool_name_for_matching(name) == last_norm:
+            return True
+    return False

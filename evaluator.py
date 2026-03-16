@@ -215,8 +215,11 @@ def _search_official_plugins(category_id: str) -> list:
         if p_cat == category_id:
             name = p.get("name") or p.get("id") or ""
             if name:
+                # Prefix with "plugin:anthropic:" so display code and RANK_SYSTEM_PROMPT
+                # can correctly identify and handle this tool type
+                plugin_id = f"plugin:anthropic:{name}"
                 results.append({
-                    "id": name,
+                    "id": plugin_id,
                     "description": (p.get("description") or "")[:200],
                 })
     return results
@@ -289,15 +292,19 @@ def search_by_category(category_id: str, limit: int = 10) -> list:
     except Exception:
         pass
 
-    # 3. glama.ai MCPs — search primary term only (rate limit aware)
+    # 3. glama.ai MCPs — use mcp_search_terms (service names) if present,
+    #    otherwise fall back to first general search term
     if len(results) < limit:
         try:
-            primary_term = cat.get("search_terms", [""])[0]
-            if primary_term:
-                for mcp in _search_glama(primary_term, limit=5):
-                    if mcp["id"] not in seen_ids:
-                        seen_ids.add(mcp["id"])
-                        results.append(mcp)
+            mcp_terms = cat.get("mcp_search_terms") or []
+            glama_term = mcp_terms[0] if mcp_terms else cat.get("search_terms", [""])[0]
+            if glama_term:
+                for mcp in _search_glama(glama_term, limit=5):
+                    # Prefix with "mcp:" so type detection and display work correctly
+                    mcp_id = mcp["id"] if mcp["id"].startswith("mcp:") else f"mcp:{mcp['id']}"
+                    if mcp_id not in seen_ids:
+                        seen_ids.add(mcp_id)
+                        results.append({"id": mcp_id, "description": mcp.get("description", "")})
         except Exception:
             pass
 

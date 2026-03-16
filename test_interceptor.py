@@ -292,6 +292,93 @@ class TestLastSuggestedTracking(unittest.TestCase):
         assert result is False
 
 
+class TestNormalizeToolName(unittest.TestCase):
+    """Tests for normalize_tool_name_for_matching."""
+
+    def test_strips_mcp_prefix(self):
+        from interceptor import normalize_tool_name_for_matching
+        assert normalize_tool_name_for_matching("mcp:github") == "github"
+
+    def test_strips_operation_suffix_from_cc_tool(self):
+        from interceptor import normalize_tool_name_for_matching
+        assert normalize_tool_name_for_matching("github (create_pull_request)") == "github"
+
+    def test_mcp_stored_matches_cc_tool_format(self):
+        """mcp:github stored form normalizes to same value as CC_TOOL 'github (op)'."""
+        from interceptor import normalize_tool_name_for_matching
+        assert (normalize_tool_name_for_matching("mcp:github") ==
+                normalize_tool_name_for_matching("github (create_pull_request)"))
+
+    def test_strips_plugin_anthropic_prefix(self):
+        from interceptor import normalize_tool_name_for_matching
+        assert normalize_tool_name_for_matching("plugin:anthropic:linear") == "linear"
+
+    def test_strips_plugin_cc_marketplace_prefix(self):
+        from interceptor import normalize_tool_name_for_matching
+        assert normalize_tool_name_for_matching("plugin:cc-marketplace:foo") == "foo"
+
+    def test_skill_id_unchanged(self):
+        from interceptor import normalize_tool_name_for_matching
+        # Skills have owner/repo@name format — no prefix to strip
+        assert normalize_tool_name_for_matching("owner/repo@skill-name") == "owner/repo@skill-name"
+
+    def test_lowercases_result(self):
+        from interceptor import normalize_tool_name_for_matching
+        assert normalize_tool_name_for_matching("mcp:GitHub") == "github"
+
+    def test_empty_string(self):
+        from interceptor import normalize_tool_name_for_matching
+        assert normalize_tool_name_for_matching("") == ""
+
+
+class TestCheckConversionNormalized(unittest.TestCase):
+    """Tests for check_conversion using normalized MCP name matching."""
+
+    def setUp(self):
+        self.state_file = tempfile.mktemp(suffix=".json")
+
+    def tearDown(self):
+        try:
+            os.unlink(self.state_file)
+        except Exception:
+            pass
+
+    def test_mcp_stored_matches_cc_tool_operation_format(self):
+        """mcp:github stored last_suggested matches 'github (create_pull_request)' CC_TOOL."""
+        from interceptor import write_last_suggested, check_conversion
+        write_last_suggested("mcp:github", state_file=self.state_file)
+        result = check_conversion(["github (create_pull_request)"], state_file=self.state_file)
+        assert result is True
+
+    def test_mcp_stored_matches_plain_server_name(self):
+        """mcp:supabase stored matches 'supabase (execute_sql)' CC_TOOL."""
+        from interceptor import write_last_suggested, check_conversion
+        write_last_suggested("mcp:supabase", state_file=self.state_file)
+        result = check_conversion(["supabase (execute_sql)"], state_file=self.state_file)
+        assert result is True
+
+    def test_different_mcp_does_not_match(self):
+        """mcp:github does not match supabase (execute_sql)."""
+        from interceptor import write_last_suggested, check_conversion
+        write_last_suggested("mcp:github", state_file=self.state_file)
+        result = check_conversion(["supabase (execute_sql)"], state_file=self.state_file)
+        assert result is False
+
+    def test_plugin_stored_matches_display_name(self):
+        """plugin:anthropic:linear stored matches 'linear' in installed list."""
+        from interceptor import write_last_suggested, check_conversion
+        write_last_suggested("plugin:anthropic:linear", state_file=self.state_file)
+        result = check_conversion(["linear"], state_file=self.state_file)
+        assert result is True
+
+    def test_exact_match_still_works(self):
+        """Exact string match still works for skills."""
+        from interceptor import write_last_suggested, check_conversion
+        write_last_suggested("owner/repo@skill-name", state_file=self.state_file)
+        result = check_conversion(["owner/repo@skill-name"], state_file=self.state_file)
+        assert result is True
+
+
 class TestAtomicWrite(unittest.TestCase):
     """State file writes must be atomic — no partial/corrupt JSON on crash."""
 

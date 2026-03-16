@@ -3,96 +3,112 @@
     "id": "source-control",
     "label": "Source Control & GitHub",
     "search_terms": ["github", "git", "pull-request", "branch", "commit", "merge", "pr", "shipping"],
+    "mcp_search_terms": ["github", "gitlab", "gitea", "bitbucket"],
     "example_tools": ["mcp__github__create_pull_request", "gh-cli"]
   },
   {
     "id": "database",
     "label": "Database & SQL",
     "search_terms": ["database", "sql", "postgres", "supabase", "mysql", "sqlite", "mongodb", "redis", "query", "migration", "schema", "rls"],
+    "mcp_search_terms": ["postgresql", "mysql", "mongodb", "redis", "supabase", "sqlite", "database"],
     "example_tools": ["mcp__supabase__execute_sql", "supabase-postgres-best-practices"]
   },
   {
     "id": "cloud-infrastructure",
     "label": "Cloud Infrastructure",
     "search_terms": ["aws", "gcp", "azure", "terraform", "cdk", "cloudformation", "lambda", "s3", "ec2", "cloud"],
+    "mcp_search_terms": ["aws", "gcp", "azure", "cloudflare", "terraform", "pulumi"],
     "example_tools": []
   },
   {
     "id": "frontend",
     "label": "Frontend & UI Frameworks",
     "search_terms": ["react", "vue", "angular", "nextjs", "svelte", "html", "css", "tailwind", "component", "ui", "frontend"],
+    "mcp_search_terms": ["figma", "storybook", "vercel", "netlify"],
     "example_tools": []
   },
   {
     "id": "mobile",
     "label": "Mobile Development",
     "search_terms": ["flutter", "react-native", "ios", "android", "swift", "kotlin", "mobile"],
+    "mcp_search_terms": ["expo", "firebase", "appstore", "xcode"],
     "example_tools": []
   },
   {
     "id": "ai-ml",
     "label": "AI & ML Pipelines",
     "search_terms": ["langchain", "llamaindex", "openai", "rag", "llm", "agent", "ml", "vector-store"],
+    "mcp_search_terms": ["openai", "anthropic", "huggingface", "langchain", "replicate", "groq"],
     "example_tools": []
   },
   {
     "id": "testing",
     "label": "Testing & QA",
     "search_terms": ["test", "jest", "pytest", "playwright", "vitest", "cypress", "unit", "e2e", "mock", "spec"],
+    "mcp_search_terms": ["playwright", "selenium", "browserstack", "testing"],
     "example_tools": []
   },
   {
     "id": "devops-cicd",
     "label": "DevOps & CI/CD",
     "search_terms": ["docker", "kubernetes", "github-actions", "cicd", "deploy", "pipeline", "helm", "k8s", "container"],
+    "mcp_search_terms": ["docker", "kubernetes", "jenkins", "circleci", "github-actions", "helm"],
     "example_tools": []
   },
   {
     "id": "auth-identity",
     "label": "Authentication & Identity",
     "search_terms": ["auth", "oauth", "jwt", "session", "login", "identity", "clerk", "nextauth"],
+    "mcp_search_terms": ["auth0", "clerk", "okta", "firebase", "cognito"],
     "example_tools": []
   },
   {
     "id": "api-integrations",
     "label": "APIs & Third-Party Integrations",
     "search_terms": ["webhook", "rest", "graphql", "slack", "twilio", "sendgrid", "integration", "zapier"],
+    "mcp_search_terms": ["slack", "linear", "jira", "notion", "asana", "zendesk", "hubspot", "twilio"],
     "example_tools": []
   },
   {
     "id": "data-processing",
     "label": "Data Processing & ETL",
     "search_terms": ["etl", "pandas", "csv", "transform", "data-processing", "ingestion", "scraping"],
+    "mcp_search_terms": ["notion", "airtable", "google-sheets", "snowflake", "bigquery"],
     "example_tools": []
   },
   {
     "id": "monitoring",
     "label": "Monitoring & Observability",
     "search_terms": ["sentry", "datadog", "logging", "metrics", "tracing", "observability", "monitoring", "alert"],
+    "mcp_search_terms": ["sentry", "datadog", "grafana", "pagerduty", "newrelic"],
     "example_tools": []
   },
   {
     "id": "documentation",
     "label": "Documentation",
     "search_terms": ["docs", "readme", "swagger", "openapi", "docstring", "documentation", "wiki", "changelog"],
+    "mcp_search_terms": ["confluence", "notion", "gitbook", "readme"],
     "example_tools": []
   },
   {
     "id": "search-embeddings",
     "label": "Search & Embeddings",
     "search_terms": ["search", "embedding", "pinecone", "pgvector", "semantic", "elasticsearch", "typesense"],
+    "mcp_search_terms": ["elasticsearch", "pinecone", "weaviate", "qdrant", "typesense"],
     "example_tools": []
   },
   {
     "id": "backend-frameworks",
     "label": "Backend Frameworks",
     "search_terms": ["express", "fastapi", "django", "rails", "nestjs", "fastify", "flask", "backend", "server", "api"],
+    "mcp_search_terms": ["fastapi", "django", "express", "rails", "server"],
     "example_tools": []
   },
   {
     "id": "payments",
     "label": "Payments & Billing",
     "search_terms": ["stripe", "payment", "billing", "subscription", "invoice", "checkout"],
+    "mcp_search_terms": ["stripe", "paypal", "braintree"],
     "example_tools": []
   }
 ]
