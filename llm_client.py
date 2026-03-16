@@ -163,6 +163,9 @@ class LLMClient:
         try:
             if client is None:
                 return ""
+            # Remap non-Claude model names (e.g. OpenRouter free model passed in BYOK mode)
+            if not model.startswith("claude-"):
+                model = "claude-haiku-4-5-20251001"
             response = client.messages.create(
                 model=model,
                 max_tokens=max_tokens,

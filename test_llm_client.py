@@ -127,6 +127,22 @@ class TestComplete(unittest.TestCase):
         assert result == '{"shift": false}'
         MockAnthropic.return_value.messages.create.assert_called_once()
 
+    def test_complete_anthropic_remaps_openrouter_model_to_haiku(self):
+        """When Anthropic provider is used but model is an OpenRouter model name, remap to claude-haiku.
+        This is the BYOK bug: classify_model() always returns the free OpenRouter model name,
+        which is invalid for Anthropic's API, causing a silent exception and no classification."""
+        from llm_client import LLMClient
+        client = LLMClient(provider="anthropic", api_key="sk-ant-test")
+        mock_response = MagicMock()
+        mock_response.content = [MagicMock(text='{"shift": false}')]
+        with patch("anthropic.Anthropic") as MockAnthropic:
+            MockAnthropic.return_value.messages.create.return_value = mock_response
+            client._anthropic_client = MockAnthropic.return_value
+            result = client.complete(system="sys", user="usr", model="meta-llama/llama-3.1-8b-instruct:free")
+        assert result == '{"shift": false}'
+        actual_model = MockAnthropic.return_value.messages.create.call_args.kwargs["model"]
+        assert actual_model.startswith("claude-"), f"Expected Claude model, got {actual_model}"
+
     def test_complete_anthropic_fallback_when_openrouter_fails(self):
         from llm_client import LLMClient
         client = LLMClient(

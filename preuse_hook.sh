@@ -262,9 +262,8 @@ except:
     print('no')
 " "$RECOMMENDATIONS" "$THRESHOLD" 2>/dev/null || echo "no")
 
-# ── Log intercept event to hosted API (fire-and-forget, hosted mode only) ──
-if [ -n "$DISPATCH_TOKEN" ]; then
-    TOP_TOOL_NAME=$(python3 -c "
+# ── Extract top tool name unconditionally (used for bypass + conversion tracking) ──
+TOP_TOOL_NAME=$(python3 -c "
 import json, sys
 try:
     r = json.loads(sys.argv[1])
@@ -273,6 +272,9 @@ try:
 except:
     print('')
 " "$RECOMMENDATIONS" 2>/dev/null || echo "")
+
+# ── Log intercept event to hosted API (fire-and-forget, hosted mode only) ──
+if [ -n "$DISPATCH_TOKEN" ]; then
     DETECTION_BODY=$(python3 -c "
 import json, sys
 try:
