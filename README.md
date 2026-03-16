@@ -26,7 +26,7 @@ Dispatch runs as two Claude Code hooks wired together:
 
 **Hook 1 — fires on every message you send.** Sends your last few messages to a small model for ~100ms. If it detects a task shift (you moved from debugging a Flutter widget to writing tests, say), it maps the shift to a category and saves it to state. Silent — you never see it.
 
-**Hook 2 — fires before every tool call.** When Claude is about to invoke a Skill, Agent, or MCP tool, Dispatch intercepts it. It searches the marketplace for tools relevant to your current task category, scores them against what Claude was about to use, and if a marketplace tool scores 10+ points higher — it blocks the call and surfaces the comparison:
+**Hook 2 — fires before every tool call.** When Claude is about to invoke a Skill, Agent, or MCP tool, Dispatch intercepts it. It searches the marketplace — npm skills, the Claude plugin registries, and glama.ai for MCPs — for tools relevant to your current task, scores them against what Claude was about to use, and if a marketplace tool scores 10+ points higher — it blocks the call and surfaces the comparison:
 
 ```
 [DISPATCH] Intercepted: CC is about to use 'superpowers:systematic-debugging' for Flutter Fixing.
@@ -153,9 +153,9 @@ When Hook 2 intercepts a tool call, it:
 4. Scores Claude's chosen tool on the same scale
 5. Blocks if the top result beats Claude's score by 10+, passes through otherwise
 
-**Free/BYOK** — hits the live [skills.sh](https://skills.sh) marketplace on each intercept (~2–4s)
+**Free/BYOK** — hits the live [skills.sh](https://skills.sh) marketplace and glama.ai MCP registry on each intercept (~2–4s)
 
-**Pro** — pulls from a pre-ranked catalog built by a daily crawl across npm, skills.sh, and Claude plugin registries, scored by Haiku during the crawl. Intercept response is <200ms.
+**Pro** — pulls from a pre-ranked catalog built by a daily crawl across npm, skills.sh, glama.ai, and the Claude plugin registries. Tools are classified into a hierarchical taxonomy (category → subcategory → leaf node) during the crawl. At intercept time, Dispatch maps your task to the closest taxonomy leaf and returns a pure catalog query — no LLM call. Intercept response is <200ms.
 
 ---
 
@@ -182,7 +182,11 @@ The more skills in the registry that match your work, the more often Dispatch ha
 
 ## How the categories work
 
-Dispatch uses 16 MECE categories to route marketplace searches — things like `mobile-development`, `frontend-web`, `devops-infra`, `data-science`. When Haiku detects a shift, it generates a specific task type label like `flutter-fixing` or `nextjs-building`, then maps that label to a category. The category drives the marketplace search, which is more targeted than keyword-splitting the task type directly.
+Dispatch uses a hierarchical MECE taxonomy with 16 top-level categories: `source-control`, `data-storage`, `search-discovery`, `ai-ml`, `frontend`, `mobile`, `backend`, `infrastructure`, `delivery`, `integrations`, `identity-security`, `observability`, `testing`, `data-engineering`, `payments`, `documentation`. Each category breaks down into subcategories and leaf nodes (e.g. `data-storage → relational → postgresql`).
+
+When Haiku detects a task shift, it generates a specific label like `flutter-fixing` or `postgres-rls-query`. Dispatch maps that label to the closest taxonomy leaf — scoring token overlap against 100+ leaf nodes and their tags. The leaf drives marketplace search with precise vocabulary (e.g. `postgresql` maps to postgres/rls/migration/query terms), which is more targeted than keyword-splitting the task label directly.
+
+Pro users get the full taxonomy path sent to the catalog — results filtered by leaf node and matching tags, sorted by pre-computed signal scores with no LLM involved.
 
 Unknown task types are logged to `unknown_categories.jsonl` in the dispatch directory — if you're working in a niche stack and Dispatch consistently misses, that file tells you why.
 
