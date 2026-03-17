@@ -51,7 +51,7 @@ You'll see your mode, plan, token (masked), and whether both hooks are installed
 
 Here's what's actually running:
 
-**Every message you send** — Hook 1 runs (~100ms). It reads your last few messages and checks if you've shifted to a different type of task. If you haven't shifted, it exits silently. If you have, it maps the shift to a category. In BYOK mode, it immediately surfaces grouped tool recommendations (Stage 3) into Claude's context — grouped by Plugins, Skills, and MCPs. You see each category's recommendations once per session.
+**Every message you send** — Hook 1 runs (~100ms). It reads your last few messages and checks if you've shifted to a different type of task. If you haven't shifted, it exits silently. If you have, it maps the shift to a category and immediately surfaces grouped tool recommendations (Stage 3) into Claude's context — grouped by Plugins, Skills, and MCPs. You see each category's recommendations once per session.
 
 **Every tool call Claude makes** — Hook 2 runs before Claude uses a Skill, Agent, or MCP tool. It checks the marketplace for tools relevant to your current task. If it finds one that scores 10+ points higher than what Claude was about to use, it blocks and shows you the comparison.
 
@@ -59,7 +59,7 @@ Here's what's actually running:
 
 ## When Dispatch recommends proactively
 
-In BYOK mode, when Dispatch detects a task shift, it immediately surfaces a grouped recommendation list into Claude's context — before Claude reaches for any tool. You'll see something like this:
+When Dispatch detects a task shift, it immediately surfaces a grouped recommendation list into Claude's context — before Claude reaches for any tool. You'll see something like this:
 
 ```
 [Dispatch] Recommended tools for this flutter-building task:
@@ -87,7 +87,6 @@ Not sure which to pick? Ask me — I can explain the differences.
 
 **Ignore it and keep working** — the list appears once and won't repeat for the same topic this session. There's no prompt waiting for a response.
 
-> **Note:** Proactive recommendations (Stage 3) require BYOK mode — set `ANTHROPIC_API_KEY` in your environment. Hosted Free and Pro server-side support is planned for V2.
 
 ---
 
@@ -170,7 +169,7 @@ Shows:
 
 | | Free | Founding Pro | Pro | BYOK |
 |---|---|---|---|---|
-| Proactive recommendations | — (V2) | — (V2) | — (V2) | ✓ |
+| Proactive recommendations | ✓ | ✓ | ✓ | ✓ |
 | Interceptions/day | 8 | Unlimited | Unlimited | Unlimited |
 | Ranking model | Haiku | Sonnet | Sonnet | Haiku |
 | Catalog | Live search (~2–4s) | Pre-ranked (<200ms) | Pre-ranked (<200ms) | Live search (~2–4s) |
@@ -192,7 +191,7 @@ This is usually correct — Dispatch only intercepts when the gap is 10+ points.
 
 **Proactive recommendations aren't appearing**
 
-Proactive recommendations require BYOK mode. Set `ANTHROPIC_API_KEY` in your environment and restart your CC session. Hosted support is coming in V2.
+Proactive recommendations fire only on a confirmed task shift (confidence ≥ 0.7) and only once per category per session. If you haven't switched topics, no output is expected. Make sure you started a **new** CC session after install.
 
 **"UserPromptSubmit hook error" in the sidebar**
 

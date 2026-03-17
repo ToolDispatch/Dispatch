@@ -28,9 +28,9 @@ Dispatch fixes this two ways: it proactively surfaces the right tools when your 
 
 Dispatch runs as two Claude Code hooks wired together:
 
-**Hook 1 — fires on every message you send.** Sends your last few messages to a small model for ~100ms. If it detects a task shift (you moved from debugging a Flutter widget to writing tests, say), it maps the shift to a category and — in BYOK mode — immediately surfaces grouped tool recommendations into Claude's context (Stage 3). Recommendations are grouped by type: Plugins, Skills, and MCPs. You see them once per topic per session.
+**Hook 1 — fires on every message you send.** Sends your last few messages to a small model for ~100ms. If it detects a task shift (you moved from debugging a Flutter widget to writing tests, say), it maps the shift to a category and immediately surfaces grouped tool recommendations into Claude's context (Stage 3). Recommendations are grouped by type: Plugins, Skills, and MCPs. You see them once per topic per session.
 
-Example proactive output (BYOK mode, on task shift):
+Example proactive output (on task shift):
 
 ```
 [Dispatch] Recommended tools for this flutter-building task:
@@ -49,8 +49,6 @@ MCPs:
 
 Not sure which to pick? Ask me — I can explain the differences.
 ```
-
-> **Note:** Proactive recommendations (Stage 3) require BYOK mode (`ANTHROPIC_API_KEY`). Hosted Free and Pro server-side support is planned for V2.
 
 If no task shift is detected, Hook 1 exits silently with no output.
 
@@ -135,7 +133,7 @@ Dispatch runs entirely locally. No account, no data leaves your machine. You los
 
 | | Free | Pro | BYOK |
 |---|---|---|---|
-| **Proactive recommendations** | — (coming V2) | — (coming V2) | ✓ |
+| **Proactive recommendations** | ✓ | ✓ | ✓ |
 | **Interceptions/day** | 8 | Unlimited | Unlimited |
 | **Ranking model** | Haiku | Sonnet | Haiku |
 | **Catalog** | Live search | Pre-ranked + network signal | Live search only |
@@ -161,7 +159,7 @@ The `anthropic` Python package installs automatically via `install.sh`.
 
 Most of the time, Dispatch is invisible. Hook 1 runs on every message and exits silently unless it detects a shift. Hook 2 runs on every tool call but exits silently unless it finds something meaningfully better.
 
-**When Hook 1 fires (BYOK mode, on task shift):** You'll see a proactive list of recommended tools grouped by Plugins, Skills, and MCPs directly in Claude's context. Ask Claude to explain the differences between any of them, paste the install command for one you want, or ignore the list and keep working. Dispatch won't show the same category's suggestions again this session.
+**When Hook 1 fires (on task shift):** You'll see a proactive list of recommended tools grouped by Plugins, Skills, and MCPs directly in Claude's context. Ask Claude to explain the differences between any of them, paste the install command for one you want, or ignore the list and keep working. Dispatch won't show the same category's suggestions again this session.
 
 **When Hook 2 fires:** Claude pauses and shows you the comparison. You have three options:
 
@@ -242,8 +240,9 @@ The stack profile lives at `~/.claude/dispatch/stack_profile.json` and updates a
 - If marketplace search returns nothing, there's nothing to compare against
 
 **Proactive recommendations aren't appearing**
-- Proactive recommendations require BYOK mode — set `ANTHROPIC_API_KEY` in your environment
-- Hosted Free and Pro server-side support is planned for V2
+- Start a **new** Claude Code session after install — hooks load at startup
+- Check that Hook 1 is registered: look for `UserPromptSubmit` in `~/.claude/settings.json`
+- Proactive recommendations fire only on a confirmed task shift with confidence ≥ 0.7 — if you're continuing the same topic, no output is expected
 
 **Hook is slow**
 - 10s hard timeout — Claude proceeds normally if exceeded
@@ -337,7 +336,7 @@ Built by [Visionairy](https://visionairy.biz). If you're getting serious about A
 - [x] Slack notifications — signup, upgrade, conversion, daily digest, cron completion
 - [x] `/dispatch status` command
 - [x] Proactive recommendations — grouped by type (Plugins/Skills/MCPs) at task shift (Stage 3)
-- [ ] Hosted proactive recommendations for Free and Pro (V2)
+- [x] Hosted proactive recommendations for Free and Pro
 - [ ] skills.sh distribution (`npx skills add VisionAIrySE/Dispatch`)
 - [ ] CC marketplace submission
 - [ ] Weekly new-tool digest email for Pro users
