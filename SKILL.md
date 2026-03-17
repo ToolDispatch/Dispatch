@@ -1,12 +1,14 @@
 ---
 name: dispatch
 description: >
-  Automatically surfaces the best plugin, skill, or MCP server for your
-  current task. Runs as a UserPromptSubmit + PreToolUse hook — fires silently
-  in the background, intercepts tool calls when a better marketplace alternative
-  exists (≥10-point score gap), and shows a ranked recommendation list with
-  install commands. Supports hosted mode (free, 8 detections/day) or BYOK
-  (bring your own Anthropic API key, unlimited).
+  Proactively surfaces the best plugin, skill, or MCP server for your current
+  task — and intercepts tool calls when a better marketplace alternative exists.
+  Runs as a UserPromptSubmit + PreToolUse hook: on task shift (BYOK mode),
+  surfaces grouped recommendations by type (Plugins/Skills/MCPs) directly in
+  context; before every tool call, scores marketplace alternatives 0–100 and
+  blocks (exit 2) if a better tool scores ≥10 points higher. User types
+  "proceed" to bypass (one-time, no restart). Supports hosted mode (free,
+  8 intercepts/day) or BYOK (unlimited, proactive recommendations enabled).
 license: MIT
 hooks:
   UserPromptSubmit:
@@ -19,7 +21,7 @@ hooks:
       timeout_ms: 10000
 metadata:
   author: VisionAIrySE
-  version: "0.9.0"
+  version: "1.0.0"
   repository: https://github.com/VisionAIrySE/Dispatch
   homepage: https://dispatch.visionairy.biz
   install: bash <(curl -fsSL https://raw.githubusercontent.com/VisionAIrySE/Dispatch/main/install.sh)
@@ -27,9 +29,9 @@ metadata:
 
 # Dispatch
 
-Runtime skill router for Claude Code. Detects task shifts and surfaces the best
-plugin, MCP server, or agent skill before you start — so you're always using the
-right tool.
+Proactive tool discovery and protective intercept for Claude Code. Detects task
+shifts, surfaces grouped plugin/skill/MCP recommendations before you start, and
+blocks weaker tool choices mid-session — so you're always using the right tool.
 
 ## Install
 
@@ -43,15 +45,19 @@ Requires Python 3.8+ and Node.js (for `npx skills list`).
 
 **Hook 1 — UserPromptSubmit** (`dispatch.sh`): Detects topic shifts using Claude
 Haiku (~100ms). On a confirmed shift, maps the task type to one of 16 MECE
-categories using `category_mapper.py`. Category drives the marketplace search —
-more targeted than keyword-splitting the task type directly. State is written for
-Hook 2. Silent — no output.
+categories using `category_mapper.py`. In BYOK mode, Stage 3 immediately surfaces
+grouped tool recommendations into Claude's context — organized by Plugins, Skills,
+and MCPs, 2–3 per type, with install commands. Closes with "Not sure which to
+pick? Ask me — I can explain the differences." Each category's recommendations
+appear once per session. In Hosted mode, Stage 3 proactive output is planned for
+V2; Hook 1 writes category state for Hook 2.
 
 **Hook 2 — PreToolUse** (`preuse_hook.sh`): Before Claude invokes a Skill, Agent,
 or MCP tool, searches the marketplace using the current task category, scores all
 results 0–100, and scores Claude's chosen tool on the same scale. If the top
 alternative scores ≥10 points higher, blocks (exit 2) and surfaces the ranked
 comparison. The user can type "proceed" to bypass (one-time, no restart needed).
+Works in all modes: Free, BYOK, and Pro.
 
 **Category-first routing**: 16 MECE categories (e.g. `mobile`, `frontend`,
 `devops-cicd`, `ai-ml`). Haiku generates open-ended task type labels; the
@@ -73,10 +79,11 @@ tools with similar base scores.
 
 ## Modes
 
-| Mode | Requirement | Detections |
-|------|------------|-----------|
-| **Hosted** | Free token at dispatch.visionairy.biz | 8/day free, unlimited Pro ($10/mo — first 300 get $6/mo for life) |
-| **BYOK** | `ANTHROPIC_API_KEY` set | Unlimited |
+| Mode | Requirement | Intercepts | Proactive |
+|------|------------|-----------|-----------|
+| **Hosted Free** | Free token at dispatch.visionairy.biz | 8/day | — (V2) |
+| **Hosted Pro** | $10/mo ($6 founding) | Unlimited | — (V2) |
+| **BYOK** | `ANTHROPIC_API_KEY` set | Unlimited | ✓ |
 
 ## Docs
 

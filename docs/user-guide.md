@@ -1,6 +1,6 @@
 # Dispatch User Guide
 
-**Dispatch** — runtime skill router for Claude Code. Watches your work, intercepts tool calls when a better marketplace tool exists, and surfaces it before Claude proceeds.
+**Dispatch** — proactive tool discovery and protective intercept for Claude Code. Surfaces the best plugin, skill, or MCP when you shift tasks, and blocks tool calls when a better marketplace alternative exists.
 
 ---
 
@@ -49,17 +49,51 @@ You'll see your mode, plan, token (masked), and whether both hooks are installed
 
 ## What happens during a session
 
-Most of the time, Dispatch is silent. Here's what's actually running:
+Here's what's actually running:
 
-**Every message you send** — Hook 1 runs (~100ms). It reads your last few messages and checks if you've shifted to a different type of task. If you haven't shifted, it exits immediately. If you have, it maps the shift to a category and saves it to state.
+**Every message you send** — Hook 1 runs (~100ms). It reads your last few messages and checks if you've shifted to a different type of task. If you haven't shifted, it exits silently. If you have, it maps the shift to a category. In BYOK mode, it immediately surfaces grouped tool recommendations (Stage 3) into Claude's context — grouped by Plugins, Skills, and MCPs. You see each category's recommendations once per session.
 
 **Every tool call Claude makes** — Hook 2 runs before Claude uses a Skill, Agent, or MCP tool. It checks the marketplace for tools relevant to your current task. If it finds one that scores 10+ points higher than what Claude was about to use, it blocks and shows you the comparison.
 
 ---
 
+## When Dispatch recommends proactively
+
+In BYOK mode, when Dispatch detects a task shift, it immediately surfaces a grouped recommendation list into Claude's context — before Claude reaches for any tool. You'll see something like this:
+
+```
+[Dispatch] Recommended tools for this flutter-building task:
+
+Plugins:
+  • flutter-mobile-app-dev — Expert Flutter agent for widgets, state, iOS/Android.
+    Install: claude install plugin:anthropic:flutter-mobile-app-dev
+
+Skills:
+  • VisionAIrySE/flutter@flutter-dev — Flutter dev skill for widget building.
+    Install: claude install VisionAIrySE/flutter@flutter-dev
+
+MCPs:
+  • fluttermcp — Dart analysis and widget tree inspection server.
+    Install: claude mcp add fluttermcp npx -y @fluttermcp/server
+
+Not sure which to pick? Ask me — I can explain the differences.
+```
+
+### What to do with it
+
+**Ask Claude about any of them** — say "what's the difference between the plugin and the MCP?" Claude will explain based on what Dispatch surfaced.
+
+**Install one** — paste the install command shown, or run it manually. For tools that require a restart, use `/compact` first to preserve your session context.
+
+**Ignore it and keep working** — the list appears once and won't repeat for the same topic this session. There's no prompt waiting for a response.
+
+> **Note:** Proactive recommendations (Stage 3) require BYOK mode — set `ANTHROPIC_API_KEY` in your environment. Hosted Free and Pro server-side support is planned for V2.
+
+---
+
 ## When Dispatch intercepts
 
-You'll see something like this in your session:
+Hook 2 fires before every Skill, Agent, or MCP tool call. When Claude's chosen tool scores 10+ points lower than a marketplace alternative, Dispatch blocks and shows you the comparison:
 
 ```
 [DISPATCH] Intercepted: CC is about to use 'superpowers:systematic-debugging' for Flutter Fixing.
@@ -134,13 +168,14 @@ Shows:
 
 ## Plans at a glance
 
-| | Free | Founding Pro | Pro |
-|---|---|---|---|
-| Interceptions/day | 8 | Unlimited | Unlimited |
-| Ranking model | Haiku | Sonnet | Sonnet |
-| Catalog | Live search (~2–4s) | Pre-ranked (<200ms) | Pre-ranked (<200ms) |
-| Dashboard | Upgrade teaser | Full history + stats | Full history + stats |
-| Cost | Free | $6/month (first 300) | $10/month |
+| | Free | Founding Pro | Pro | BYOK |
+|---|---|---|---|---|
+| Proactive recommendations | — (V2) | — (V2) | — (V2) | ✓ |
+| Interceptions/day | 8 | Unlimited | Unlimited | Unlimited |
+| Ranking model | Haiku | Sonnet | Sonnet | Haiku |
+| Catalog | Live search (~2–4s) | Pre-ranked (<200ms) | Pre-ranked (<200ms) | Live search (~2–4s) |
+| Dashboard | Upgrade teaser | Full history + stats | Full history + stats | — |
+| Cost | Free | $6/month (first 300) | $10/month | API ~$0 |
 
 **Founding Dispatcher:** First 300 paying users lock in $6/month for life. Once the founding tier fills, new signups pay standard $10/month.
 
@@ -154,6 +189,10 @@ This is usually correct — Dispatch only intercepts when the gap is 10+ points.
 1. Type `/dispatch status` — verify both hooks show "installed"
 2. Make sure you're in a **new** CC session started after install
 3. Check `~/.claude/settings.json` — look for `UserPromptSubmit` and `PreToolUse` hook entries
+
+**Proactive recommendations aren't appearing**
+
+Proactive recommendations require BYOK mode. Set `ANTHROPIC_API_KEY` in your environment and restart your CC session. Hosted support is coming in V2.
 
 **"UserPromptSubmit hook error" in the sidebar**
 

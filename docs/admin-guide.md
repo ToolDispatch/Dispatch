@@ -210,8 +210,8 @@ gunicorn app:app --worker-class gthread --workers 2 --threads 4 --timeout 30
 | Module | Purpose |
 |--------|---------|
 | `classifier.py` | Haiku shift detection — reads CC transcript, emits task type + preferred tool type |
-| `evaluator.py` | Marketplace search + Haiku ranking — `search_by_category()`, `rank_recommendations()` |
-| `interceptor.py` | PreToolUse logic — bypass token, state readers, tool type detection |
+| `evaluator.py` | Marketplace search + Haiku ranking — `search_by_category()`, `rank_recommendations()`, `recommend_tools()` (proactive recommendations with by_type grouping for Stage 3) |
+| `interceptor.py` | PreToolUse logic — bypass token, state readers, tool type detection, `get/write_last_recommended_category()` (once-per-category gate for Stage 3) |
 | `category_mapper.py` | Maps Haiku-generated task type labels to one of 16 MECE categories |
 | `categories.json` | MECE category catalog with `search_terms` (skills.sh) and `mcp_search_terms` (glama.ai) |
 | `llm_client.py` | LLM-agnostic adapter — OpenRouter-first (free tier uses llama-3.1-8b-instruct:free), falls back to Anthropic BYOK, noop on failure |
@@ -232,6 +232,11 @@ Both have GitHub Actions CI (`.github/workflows/tests.yml`) that runs on push/PR
 
 **User says they're not being intercepted**
 → Ask them to run `/dispatch status` in a CC session. Checks if hooks are installed and shows last task detected.
+
+**User says proactive recommendations aren't appearing**
+→ Stage 3 proactive recommendations require BYOK mode (`ANTHROPIC_API_KEY` set in their environment). Hosted Free and Pro server-side proactive support is planned (V2).
+→ To verify they're in BYOK mode: `cat ~/.claude/dispatch/config.json` — should show `"mode": "byok"` or have API key configured.
+→ If they're in Hosted mode, tell them proactive recommendations are coming V2. The intercept (Hook 2) still works.
 
 **User hit free tier limit (8/day)**
 → They'll see quota errors. Direct to `/pro?token=TOKEN` or gift Pro via `/admin/set-plan`.

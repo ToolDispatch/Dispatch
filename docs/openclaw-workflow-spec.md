@@ -683,7 +683,7 @@ Keep only `medium` or `high` intent items, or where `reply_worthy` is true.
     },
     "sendBody": true,
     "contentType": "raw",
-    "body": "={{ JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 400, messages: [{ role: 'user', content: 'You are a developer advocate for Dispatch (https://github.com/VisionAIrySE/Dispatch), a free Claude Code skill router that automatically detects task context and recommends the best plugins/MCP servers.\\n\\nWrite a helpful, non-spammy reply to this ' + $json.source + ' post. Be genuinely useful. Mention Dispatch only if it directly solves their problem. Do not mention competitors. Write like a real developer, not a marketer.\\n\\nPost:\\nTitle: ' + $json.title + '\\nBody: ' + $json.body.substring(0, 400) + '\\n\\nWrite only the reply text, no preamble.' }] }) }}"
+    "body": "={{ JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 400, messages: [{ role: 'user', content: 'You are a developer advocate for Dispatch (https://github.com/VisionAIrySE/Dispatch), a Claude Code runtime that surfaces the best tools when you shift tasks (grouped by type: Plugins, Skills, MCPs with install commands) and intercepts tool calls when Claude picks something suboptimal (10+ point gap triggers a block). Free to start, BYOK for full dual-layer..\\n\\nWrite a helpful, non-spammy reply to this ' + $json.source + ' post. Be genuinely useful. Mention Dispatch only if it directly solves their problem. Do not mention competitors. Write like a real developer, not a marketer.\\n\\nPost:\\nTitle: ' + $json.title + '\\nBody: ' + $json.body.substring(0, 400) + '\\n\\nWrite only the reply text, no preamble.' }] }) }}"
   }
 }
 ```
@@ -1215,7 +1215,7 @@ HN does not have a public API for submissions. Use a Playwright/HTTP session app
     "contentType": "form-urlencoded",
     "bodyParameters": {
       "parameters": [
-        { "name": "title", "value": "Show HN: Dispatch — Claude Code skill router that recommends plugins based on context" },
+        { "name": "title", "value": "Show HN: Dispatch – proactively surfaces the best tools when you shift tasks, then intercepts Claude before it picks wrong" },
         { "name": "url", "value": "https://github.com/VisionAIrySE/Dispatch" },
         { "name": "fnid", "value": "={{ $('Get HN FNID').first().json.fnid }}" }
       ]
@@ -1412,7 +1412,7 @@ return [$input.first()];
     },
     "sendBody": true,
     "contentType": "raw",
-    "body": "={{ JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 300, messages: [{ role: 'user', content: 'Write a short, personal cold email (max 5 sentences) to a developer who recently starred the ' + $json.source_repo + ' GitHub repo. Their GitHub bio: ' + ($json.bio || 'not available') + '. Their public repos include: ' + ($json.public_repos || 'unknown') + ' repos.\\n\\nContext: I built Dispatch (https://github.com/VisionAIrySE/Dispatch), a free Claude Code skill router that auto-detects what you are working on and recommends the best plugins and MCP servers.\\n\\nWrite: subject line on first line, blank line, then email body. Be human. Do not pitch hard. Reference their interest in ' + $json.source_repo + '.' }] }) }}"
+    "body": "={{ JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 300, messages: [{ role: 'user', content: 'Write a short, personal cold email (max 5 sentences) to a developer who recently starred the ' + $json.source_repo + ' GitHub repo. Their GitHub bio: ' + ($json.bio || 'not available') + '. Their public repos include: ' + ($json.public_repos || 'unknown') + ' repos.\\n\\nContext: I built Dispatch (https://github.com/VisionAIrySE/Dispatch), a Claude Code runtime that proactively surfaces the best tools when you shift tasks — Plugins, Skills, and MCPs with install commands, grouped by type — and intercepts tool calls when Claude picks something suboptimal.\\n\\nWrite: subject line on first line, blank line, then email body. Be human. Do not pitch hard. Reference their interest in ' + $json.source_repo + '.' }] }) }}"
   }
 }
 ```

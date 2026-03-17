@@ -14,9 +14,9 @@
   <img src="https://img.shields.io/badge/works%20with-Claude%20Code-orange" alt="Works with Claude Code">
 </p>
 
-**A runtime skill router for Claude Code — intercepts tool calls, checks whether a better tool exists for what you're doing right now, and blocks if it finds one.**
+**Two Claude Code hooks: one that proactively surfaces the best plugin, skill, or MCP for your current task — and one that intercepts tool calls before Claude proceeds with a weaker choice.**
 
-Claude Code has hundreds of plugins and marketplace skills. Most sessions you use the same handful and forget the rest exist. Dispatch watches your work in real time, detects when you shift to a new task, and — before Claude reaches for a tool — checks whether there's something better. If there is, it stops Claude and tells you.
+Claude Code has hundreds of plugins and marketplace skills. Most sessions you use the same handful and forget the rest exist. Dispatch watches your work in real time. When you shift to a new task, it proactively surfaces grouped tool recommendations directly in your session. When Claude reaches for a tool, it checks whether something better exists — and blocks if it finds one.
 
 ---
 
@@ -24,7 +24,31 @@ Claude Code has hundreds of plugins and marketplace skills. Most sessions you us
 
 Dispatch runs as two Claude Code hooks wired together:
 
-**Hook 1 — fires on every message you send.** Sends your last few messages to a small model for ~100ms. If it detects a task shift (you moved from debugging a Flutter widget to writing tests, say), it maps the shift to a category and saves it to state. Silent — you never see it.
+**Hook 1 — fires on every message you send.** Sends your last few messages to a small model for ~100ms. If it detects a task shift (you moved from debugging a Flutter widget to writing tests, say), it maps the shift to a category and — in BYOK mode — immediately surfaces grouped tool recommendations into Claude's context (Stage 3). Recommendations are grouped by type: Plugins, Skills, and MCPs. You see them once per topic per session.
+
+Example proactive output (BYOK mode, on task shift):
+
+```
+[Dispatch] Recommended tools for this flutter-building task:
+
+Plugins:
+  • flutter-mobile-app-dev — Expert Flutter agent for widgets, state, iOS/Android.
+    Install: claude install plugin:anthropic:flutter-mobile-app-dev
+
+Skills:
+  • VisionAIrySE/flutter@flutter-dev — Flutter dev skill for widget building.
+    Install: claude install VisionAIrySE/flutter@flutter-dev
+
+MCPs:
+  • fluttermcp — Dart analysis and widget tree inspection server.
+    Install: claude mcp add fluttermcp npx -y @fluttermcp/server
+
+Not sure which to pick? Ask me — I can explain the differences.
+```
+
+> **Note:** Proactive recommendations (Stage 3) require BYOK mode (`ANTHROPIC_API_KEY`). Hosted Free and Pro server-side support is planned for V2.
+
+If no task shift is detected, Hook 1 exits silently with no output.
 
 **Hook 2 — fires before every tool call.** When Claude is about to invoke a Skill, Agent, or MCP tool, Dispatch intercepts it. It searches the marketplace — npm skills, the Claude plugin registries, and glama.ai for MCPs — for tools relevant to your current task, scores them against what Claude was about to use, and if a marketplace tool scores 10+ points higher — it blocks the call and surfaces the comparison:
 
@@ -36,11 +60,10 @@ Marketplace alternatives:
   1. flutter-mobile-app-dev [94/100] ← TOP PICK
      Why: Purpose-built for Flutter/Dart debugging with widget tree inspection.
      Install + restart: npx skills add flutter-mobile-app-dev -y && claude
-     More info: https://github.com/VisionAIrySE/flutter-mobile-app-dev
 
 ⚠ A marketplace tool scores higher than 'superpowers:systematic-debugging' for this task.
   Options:
-  1. Say 'proceed' to continue with the current tool (one-time bypass, no restart needed)
+  1. Say 'proceed' to continue with 'superpowers:systematic-debugging' (one-time bypass)
   2. Install flutter-mobile-app-dev — run /compact first, then install and restart CC
   3. Ignore Dispatch for this task — say 'skip dispatch'
 
@@ -104,10 +127,11 @@ If your security policy prohibits sending any data to external services:
 export ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-Dispatch runs entirely locally. No account, no data leaves your machine. You lose the catalog intelligence, Sonnet ranking, and dashboard — but the core intercept loop works. API costs are negligible (~$0.00005/session).
+Dispatch runs entirely locally. No account, no data leaves your machine. You lose the catalog intelligence, Sonnet ranking, and dashboard — but the core intercept loop works and proactive recommendations are enabled. API costs are negligible (~$0.00005/session).
 
 | | Free | Pro | BYOK |
 |---|---|---|---|
+| **Proactive recommendations** | — (coming V2) | — (coming V2) | ✓ |
 | **Interceptions/day** | 8 | Unlimited | Unlimited |
 | **Ranking model** | Haiku | Sonnet | Haiku |
 | **Catalog** | Live search | Pre-ranked + network signal | Live search only |
@@ -131,9 +155,11 @@ The `anthropic` Python package installs automatically via `install.sh`.
 
 ## Using it
 
-Most of the time, Dispatch is invisible. Hook 1 runs on every message but exits silently unless it detects a shift. Hook 2 runs on every tool call but exits silently unless it finds something meaningfully better.
+Most of the time, Dispatch is invisible. Hook 1 runs on every message and exits silently unless it detects a shift. Hook 2 runs on every tool call but exits silently unless it finds something meaningfully better.
 
-When it fires, Claude pauses and shows you the comparison. You have three options:
+**When Hook 1 fires (BYOK mode, on task shift):** You'll see a proactive list of recommended tools grouped by Plugins, Skills, and MCPs directly in Claude's context. Ask Claude to explain the differences between any of them, paste the install command for one you want, or ignore the list and keep working. Dispatch won't show the same category's suggestions again this session.
+
+**When Hook 2 fires:** Claude pauses and shows you the comparison. You have three options:
 
 - **Say `proceed`** — Claude uses its original tool choice, one-time bypass, no restart needed
 - **Install the top pick** — run `/compact` to save session context, paste the install command, restart CC and continue where you left off
@@ -211,6 +237,10 @@ The stack profile lives at `~/.claude/dispatch/stack_profile.json` and updates a
 - This is correct behavior most of the time — it only blocks when the gap is 10+ points
 - If marketplace search returns nothing, there's nothing to compare against
 
+**Proactive recommendations aren't appearing**
+- Proactive recommendations require BYOK mode — set `ANTHROPIC_API_KEY` in your environment
+- Hosted Free and Pro server-side support is planned for V2
+
 **Hook is slow**
 - 10s hard timeout — Claude proceeds normally if exceeded
 - Pro catalog responses are <200ms; BYOK/Free search takes 2–4s
@@ -282,7 +312,7 @@ Pull requests welcome.
 
 The Claude Code plugin ecosystem is genuinely underutilized. Most developers install a handful of tools and forget the rest exist. The problem isn't that good tools aren't available — it's that you have to already know what you need, and remember to reach for it, mid-session, while you're focused on something else.
 
-Dispatch is the runtime layer that was missing. It knows what you're doing because it reads your conversation. It knows what's available because it searches the marketplace. It connects them automatically, and only bothers you when it actually has something better.
+Dispatch is the runtime layer that was missing. It knows what you're doing because it reads your conversation. It knows what's available because it searches the marketplace. It connects them automatically — proactively surfacing options when you shift tasks, and blocking when Claude is about to reach for something weaker.
 
 Run it with your own key if you want — it works. The hosted version knows something your local copy doesn't: what tools other developers reach for when they're doing exactly what you're doing right now. That signal compounds over time.
 
@@ -302,6 +332,8 @@ Built by [Visionairy](https://visionairy.biz). If you're getting serious about A
 - [x] Creator outreach — GitHub issues for undescribed skills (max 1/repo/month)
 - [x] Slack notifications — signup, upgrade, conversion, daily digest, cron completion
 - [x] `/dispatch status` command
+- [x] Proactive recommendations — grouped by type (Plugins/Skills/MCPs) at task shift (Stage 3)
+- [ ] Hosted proactive recommendations for Free and Pro (V2)
 - [ ] skills.sh distribution (`npx skills add VisionAIrySE/Dispatch`)
 - [ ] CC marketplace submission
 - [ ] Weekly new-tool digest email for Pro users
