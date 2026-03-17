@@ -98,7 +98,7 @@ Respond with ONLY valid JSON:
 
 Rules:
 - all: marketplace tools sorted by relevance score (0-100) descending
-- Only include tools with score >= 40 (caller applies final floor)
+- Only include tools with score >= 55 (caller applies final floor)
 - Limit to top 8 tools across all types (skills, MCPs, plugins) before caller trims
 - install_cmd: use provided hint exactly — do NOT fabricate
   - skills (format "owner/repo@name"): install_cmd = "npx skills add owner/repo@name -y"
@@ -582,10 +582,14 @@ Rank these tools for this {task_type} task."""
         parsed = json.loads(text)
         all_tools = parsed.get("all", [])
 
-        # 4. Apply score floor
-        all_tools = [t for t in all_tools if int(t.get("score", 0)) >= SCORE_FLOOR]
+        # 4. Apply score floor (safe cast: handle float scores)
+        all_tools = [t for t in all_tools if int(float(t.get("score", 0))) >= SCORE_FLOOR]
         if not all_tools:
             return {"all": [], "top_pick": None}
+
+        # Capture top_pick before preferred_type reordering
+        # (top_pick should always be globally highest-scored, not preferred_type first)
+        best_by_score = max(all_tools, key=lambda t: float(t.get("score", 0))) if all_tools else None
 
         # 5. Sort by preferred_type first, then score descending
         def _type_of(name: str) -> str:
@@ -621,7 +625,7 @@ Rank these tools for this {task_type} task."""
             if "@" in name and "/" in name and "install_url" not in item:
                 item["install_url"] = f"https://github.com/{name.split('@')[0]}"
 
-        top_pick = all_tools[0] if all_tools else None
+        top_pick = best_by_score
         return {"all": all_tools, "top_pick": top_pick}
 
     except Exception:
