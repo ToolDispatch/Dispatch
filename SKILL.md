@@ -3,12 +3,13 @@ name: dispatch
 description: >
   Proactively surfaces the best plugin, skill, or MCP server for your current
   task — and intercepts tool calls when a better marketplace alternative exists.
-  Runs as a UserPromptSubmit + PreToolUse hook: on task shift (BYOK mode),
-  surfaces grouped recommendations by type (Plugins/Skills/MCPs) directly in
-  context; before every tool call, scores marketplace alternatives 0–100 and
-  blocks (exit 2) if a better tool scores ≥10 points higher. User types
-  "proceed" to bypass (one-time, no restart). Supports hosted mode (free,
-  8 intercepts/day) or BYOK (unlimited, proactive recommendations enabled).
+  Runs as a UserPromptSubmit + PreToolUse hook: on every task shift, surfaces
+  grouped recommendations by type (Plugins/Skills/MCPs) directly in context;
+  before every tool call, scores marketplace alternatives 0–100 and blocks
+  (exit 2) if a better tool scores ≥10 points higher. User types "proceed" to
+  bypass (one-time, no restart). Hosted Free (8 intercepts/day) and Pro
+  (unlimited, Sonnet ranking, pre-ranked catalog) both include full proactive
+  recommendations. BYOK available for air-gapped environments.
 license: MIT
 hooks:
   UserPromptSubmit:
@@ -49,8 +50,7 @@ categories using `category_mapper.py`. In BYOK mode, Stage 3 immediately surface
 grouped tool recommendations into Claude's context — organized by Plugins, Skills,
 and MCPs, 2–3 per type, with install commands. Closes with "Not sure which to
 pick? Ask me — I can explain the differences." Each category's recommendations
-appear once per session. In Hosted mode, Stage 3 proactive output is planned for
-V2; Hook 1 writes category state for Hook 2.
+appear once per session. Hook 1 also writes category state used by Hook 2.
 
 **Hook 2 — PreToolUse** (`preuse_hook.sh`): Before Claude invokes a Skill, Agent,
 or MCP tool, searches the marketplace using the current task category, scores all
@@ -81,9 +81,9 @@ tools with similar base scores.
 
 | Mode | Requirement | Intercepts | Proactive |
 |------|------------|-----------|-----------|
-| **Hosted Free** | Free token at dispatch.visionairy.biz | 8/day | — (V2) |
-| **Hosted Pro** | $10/mo ($6 founding) | Unlimited | — (V2) |
-| **BYOK** | `ANTHROPIC_API_KEY` set | Unlimited | ✓ |
+| **Hosted Free** | Free token at dispatch.visionairy.biz | 8/day | ✓ |
+| **Hosted Pro** | $10/mo ($6 founding) | Unlimited | ✓ |
+| **BYOK** | `ANTHROPIC_API_KEY` (air-gapped only) | Unlimited | ✓ |
 
 ## Docs
 
