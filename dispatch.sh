@@ -92,7 +92,7 @@ except:
 " 2>/dev/null || echo "https://dispatch.visionairy.biz")
 
 # ── Resolve API key (BYOK fallback) ───────────────────────────────────────
-export ANTHROPIC_API_KEY
+export ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
 
 # ── If no token AND no API key, exit silently ─────────────────────────────
 if [ -z "$DISPATCH_TOKEN" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
@@ -357,37 +357,17 @@ print(json.loads(sys.argv[1]).get('confidence', 0))
 CONF_OK=$(python3 -c "print('yes' if float('$CONFIDENCE') >= 0.7 else 'no')" 2>/dev/null || echo "no")
 [ "$CONF_OK" != "yes" ] && exit 0
 
-# ── Map task type to taxonomy path (category + subcategory + leaf + tags) ──
-TAXONOMY_PATH=$(python3 -c "
-import sys, json
-sys.path.insert(0, sys.argv[1])
-from category_mapper import map_to_taxonomy_path
-path = map_to_taxonomy_path(sys.argv[2])
-print(json.dumps(path))
-" "$SKILL_ROUTER_DIR" "$TASK_TYPE" 2>/dev/null || echo '{}')
-
+# ── Map task type to category ─────────────────────────────────────────────
 CATEGORY=$(python3 -c "
-import json, sys
-print(json.loads(sys.argv[1]).get('category_id') or 'unknown')
-" "$TAXONOMY_PATH" 2>/dev/null || echo "unknown")
+import sys
+sys.path.insert(0, sys.argv[1])
+from category_mapper import map_to_category
+result = map_to_category(sys.argv[2])
+print(result if result else 'unknown')
+" "$SKILL_ROUTER_DIR" "$TASK_TYPE" 2>/dev/null || echo "unknown")
 
-SUBCATEGORY=$(python3 -c "
-import json, sys
-print(json.loads(sys.argv[1]).get('subcategory_id', ''))
-" "$TAXONOMY_PATH" 2>/dev/null || echo "")
-
-LEAF_NODE=$(python3 -c "
-import json, sys
-print(json.loads(sys.argv[1]).get('leaf_node_id', ''))
-" "$TAXONOMY_PATH" 2>/dev/null || echo "")
-
-TAGS=$(python3 -c "
-import json, sys
-print(json.dumps(json.loads(sys.argv[1]).get('tags', [])))
-" "$TAXONOMY_PATH" 2>/dev/null || echo "[]")
-
-# Log when taxonomy match is low-confidence (no leaf found)
-if [ -z "$LEAF_NODE" ]; then
+# Log unknown categories for future catalog expansion
+if [ "$CATEGORY" = "unknown" ]; then
     python3 -c "
 import sys
 sys.path.insert(0, sys.argv[1])
@@ -432,29 +412,20 @@ if current:
 print(' | '.join(recent))
 " "$SKILL_ROUTER_DIR" "$TRANSCRIPT_PATH" "$CURRENT_PROMPT" 2>/dev/null || echo "$CURRENT_PROMPT")
 
-# Write task_type + taxonomy path + context + cwd to state
+# Write task_type + context + cwd to state — preuse_hook.sh reads these
 python3 -c "
 import json, sys, os, tempfile
 from datetime import datetime
-state_file = sys.argv[1]
-task_type, category, subcategory, leaf_node = sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5]
-context_snippet, cwd = sys.argv[6], sys.argv[7]
-try:
-    tags = json.loads(sys.argv[8])
-except Exception:
-    tags = []
+state_file, task_type, category, context_snippet, cwd = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5]
 try:
     d = json.load(open(state_file))
 except Exception:
     d = {}
-d['last_task_type']      = task_type
-d['last_category']       = category
-d['last_subcategory']    = subcategory
-d['last_leaf_node']      = leaf_node
-d['last_tags']           = tags
+d['last_task_type'] = task_type
+d['last_category'] = category
 d['last_context_snippet'] = context_snippet
-d['last_cwd']            = cwd
-d['last_updated']        = datetime.now().isoformat()
+d['last_cwd'] = cwd
+d['last_updated'] = datetime.now().isoformat()
 dir_ = os.path.dirname(os.path.abspath(state_file))
 fd, tmp = tempfile.mkstemp(dir=dir_)
 try:
@@ -463,7 +434,7 @@ try:
 except Exception:
     try: os.unlink(tmp)
     except: pass
-" "$STATE_FILE" "$TASK_TYPE" "$CATEGORY" "$SUBCATEGORY" "$LEAF_NODE" "$CONTEXT_SNIPPET" "$CWD" "$TAGS" 2>/dev/null || true
+" "$STATE_FILE" "$TASK_TYPE" "$CATEGORY" "$CONTEXT_SNIPPET" "$CWD" 2>/dev/null || true
 
 # ── Trigger stack rescan if cwd changed ──────────────────────────────────
 if [ "$CWD" != "$PREV_CWD" ]; then

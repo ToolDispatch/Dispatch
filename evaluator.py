@@ -3,7 +3,6 @@ import os
 import re
 import requests
 import time
-import anthropic
 from llm_client import get_client, ranker_model, load_config
 
 try:

@@ -143,7 +143,7 @@ class TestRankRecommendations(unittest.TestCase):
 
     def test_returns_safe_default_on_api_failure(self):
         from evaluator import rank_recommendations
-        with patch("evaluator.anthropic.Anthropic", side_effect=Exception("no key")):
+        with patch("evaluator.get_client", side_effect=Exception("no key")):
             result = rank_recommendations("flutter", [], cc_tool="some-tool")
         assert result == {"cc_score": 0, "all": []}
 
@@ -161,8 +161,10 @@ class TestRankRecommendations(unittest.TestCase):
     def test_no_cc_tool_still_works(self):
         from evaluator import rank_recommendations
         payload = json.dumps({"cc_score": 0, "all": []})
-        with patch("evaluator.anthropic.Anthropic") as MockClient:
-            MockClient.return_value.messages.create.return_value = self._mock_response(payload)
+        with patch("evaluator.get_client") as mock_get_client:
+            mock_llm = MagicMock()
+            mock_get_client.return_value = mock_llm
+            mock_llm.complete.return_value = payload
             result = rank_recommendations("general", [])
         assert result == {"cc_score": 0, "all": []}
 
@@ -253,15 +255,12 @@ class TestBuildRecommendationListWithContext(unittest.TestCase):
 
 
 class TestRankHandlesEmptyContentList(unittest.TestCase):
-    @patch('evaluator.anthropic.Anthropic')
-    @patch.dict('os.environ', {'ANTHROPIC_API_KEY': 'test-key'})
-    def test_rank_handles_empty_content_list(self, mock_client_cls):
-        mock_client = MagicMock()
-        mock_client_cls.return_value = mock_client
-        mock_response = MagicMock()
-        mock_response.content = []
-        mock_client.messages.create.return_value = mock_response
-        result = rank_recommendations("flutter", [])
+    def test_rank_handles_empty_content_list(self):
+        with patch("evaluator.get_client") as mock_get_client:
+            mock_llm = MagicMock()
+            mock_get_client.return_value = mock_llm
+            mock_llm.complete.return_value = ""
+            result = rank_recommendations("flutter", [])
         assert result == {"cc_score": 0, "all": []}
 
 
@@ -354,20 +353,17 @@ class TestScoreGapTruncation(unittest.TestCase):
 
 
 class TestRankRecommendationsModel(unittest.TestCase):
-    @patch('evaluator.anthropic.Anthropic')
-    @patch.dict('os.environ', {'ANTHROPIC_API_KEY': 'test-key'})
-    def test_uses_provided_model(self, mock_client_cls):
-        """rank_recommendations passes the model param to the Anthropic client."""
-        mock_client = MagicMock()
-        mock_client_cls.return_value = mock_client
-        mock_response = MagicMock()
-        mock_response.content = [MagicMock(text='{"all": []}')]
-        mock_client.messages.create.return_value = mock_response
+    def test_uses_provided_model(self):
+        """rank_recommendations passes the model param to llm_client.complete."""
+        with patch("evaluator.get_client") as mock_get_client:
+            mock_llm = MagicMock()
+            mock_get_client.return_value = mock_llm
+            mock_llm.complete.return_value = '{"all": []}'
 
-        rank_recommendations("flutter", [], model="claude-sonnet-4-6")
+            rank_recommendations("flutter", [], model="claude-sonnet-4-6")
 
-        _, kwargs = mock_client.messages.create.call_args
-        assert kwargs["model"] == "claude-sonnet-4-6"
+            _, kwargs = mock_llm.complete.call_args
+            assert kwargs["model"] == "claude-sonnet-4-6"
 
     @patch('evaluator.search_registry', return_value=[])
     @patch('evaluator.rank_recommendations')

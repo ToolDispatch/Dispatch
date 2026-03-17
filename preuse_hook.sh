@@ -92,7 +92,7 @@ print(json.dumps({
     'was_bypassed': True,
     'cc_tool_type': sys.argv[4],
 }))
-" "$BY_TASK" "$BY_CAT" "$TOOL_NAME" "$CC_TOOL_TYPE" 2>/dev/null || echo "{}")
+" "$BY_TASK" "$BY_CAT" "$TOOL_NAME" "${CC_TOOL_TYPE:-}" 2>/dev/null || echo "{}")
         curl -s -X POST "$BY_ENDPOINT/api/detections" \
             -H "Authorization: Bearer $BY_TOKEN" \
             -H "Content-Type: application/json" \
@@ -121,7 +121,7 @@ except:
     print('https://dispatch.visionairy.biz')
 " 2>/dev/null || echo "https://dispatch.visionairy.biz")
 
-export ANTHROPIC_API_KEY
+export ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
 
 if [ -z "$DISPATCH_TOKEN" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
     exit 0
@@ -166,27 +166,6 @@ from interceptor import get_category
 print(get_category())
 " "$SKILL_ROUTER_DIR" 2>/dev/null || echo "unknown")
 
-SUBCATEGORY=$(python3 -c "
-import sys
-sys.path.insert(0, sys.argv[1])
-from interceptor import get_subcategory
-print(get_subcategory())
-" "$SKILL_ROUTER_DIR" 2>/dev/null || echo "")
-
-LEAF_NODE=$(python3 -c "
-import sys
-sys.path.insert(0, sys.argv[1])
-from interceptor import get_leaf_node
-print(get_leaf_node())
-" "$SKILL_ROUTER_DIR" 2>/dev/null || echo "")
-
-TAGS_JSON=$(python3 -c "
-import sys, json
-sys.path.insert(0, sys.argv[1])
-from interceptor import get_tags
-print(json.dumps(get_tags()))
-" "$SKILL_ROUTER_DIR" 2>/dev/null || echo "[]")
-
 # ── Check conversion: did user install our last suggested tool? ────────────
 if [ -n "$DISPATCH_TOKEN" ]; then
     CONVERTED=$(python3 -c "
@@ -228,17 +207,13 @@ if [ -n "$DISPATCH_TOKEN" ]; then
     python3 -c "
 import json, sys
 print(json.dumps({
-    'task_type':      sys.argv[1],
+    'task_type': sys.argv[1],
     'context_snippet': sys.argv[2],
-    'cc_tool':        sys.argv[3],
-    'category_id':    sys.argv[4],
-    'cc_tool_type':   sys.argv[5],
-    'subcategory_id': sys.argv[6],
-    'leaf_node_id':   sys.argv[7],
-    'tags':           json.loads(sys.argv[8]),
+    'cc_tool': sys.argv[3],
+    'category_id': sys.argv[4],
+    'cc_tool_type': sys.argv[5],
 }))
-" "$TASK_TYPE" "$CONTEXT_SNIPPET" "$CC_TOOL" "$CATEGORY" "$CC_TOOL_TYPE" \
-  "$SUBCATEGORY" "$LEAF_NODE" "$TAGS_JSON" > "$RANK_TMP" 2>/dev/null
+" "$TASK_TYPE" "$CONTEXT_SNIPPET" "$CC_TOOL" "$CATEGORY" "$CC_TOOL_TYPE" > "$RANK_TMP" 2>/dev/null
 
     RANK_HTTP=$(curl -s -w "\n%{http_code}" \
         -X POST "$DISPATCH_ENDPOINT/rank" \
@@ -258,14 +233,8 @@ print(json.dumps({
 import sys, json
 sys.path.insert(0, sys.argv[3])
 from evaluator import build_recommendation_list
-print(json.dumps(build_recommendation_list(
-    sys.argv[1], context_snippet=sys.argv[2], cc_tool=sys.argv[4],
-    category_id=sys.argv[5], cc_tool_type=sys.argv[6],
-    subcategory_id=sys.argv[7], leaf_node_id=sys.argv[8],
-    tags=json.loads(sys.argv[9]),
-)))
-" "$TASK_TYPE" "$CONTEXT_SNIPPET" "$SKILL_ROUTER_DIR" "$CC_TOOL" "$CATEGORY" \
-  "$CC_TOOL_TYPE" "$SUBCATEGORY" "$LEAF_NODE" "$TAGS_JSON" 2>/dev/null || echo '{"all":[],"cc_score":0}')
+print(json.dumps(build_recommendation_list(sys.argv[1], context_snippet=sys.argv[2], cc_tool=sys.argv[4], category_id=sys.argv[5], cc_tool_type=sys.argv[6])))
+" "$TASK_TYPE" "$CONTEXT_SNIPPET" "$SKILL_ROUTER_DIR" "$CC_TOOL" "$CATEGORY" "$CC_TOOL_TYPE" 2>/dev/null || echo '{"all":[],"cc_score":0}')
     fi
 else
     # BYOK path
@@ -273,14 +242,8 @@ else
 import sys, json
 sys.path.insert(0, sys.argv[3])
 from evaluator import build_recommendation_list
-print(json.dumps(build_recommendation_list(
-    sys.argv[1], context_snippet=sys.argv[2], cc_tool=sys.argv[4],
-    category_id=sys.argv[5], cc_tool_type=sys.argv[6],
-    subcategory_id=sys.argv[7], leaf_node_id=sys.argv[8],
-    tags=json.loads(sys.argv[9]),
-)))
-" "$TASK_TYPE" "$CONTEXT_SNIPPET" "$SKILL_ROUTER_DIR" "$CC_TOOL" "$CATEGORY" \
-  "$CC_TOOL_TYPE" "$SUBCATEGORY" "$LEAF_NODE" "$TAGS_JSON" 2>/dev/null || echo '{"all":[],"cc_score":0}')
+print(json.dumps(build_recommendation_list(sys.argv[1], context_snippet=sys.argv[2], cc_tool=sys.argv[4], category_id=sys.argv[5], cc_tool_type=sys.argv[6])))
+" "$TASK_TYPE" "$CONTEXT_SNIPPET" "$SKILL_ROUTER_DIR" "$CC_TOOL" "$CATEGORY" "$CC_TOOL_TYPE" 2>/dev/null || echo '{"all":[],"cc_score":0}')
 fi
 
 # ── Check threshold: any marketplace tool beats CC by >= THRESHOLD? ────────
@@ -438,12 +401,6 @@ elif top_type == "plugin":
 else:
     install_line = f"  2. Install {top_display} — run /compact first, then install and restart CC"
 
-mcp_safety = [
-    "",
-    "  ⚠ MCP safety: servers run as processes with full tool access to your environment.",
-    "    Review the GitHub repo before installing — verify the source and check for recent activity.",
-] if top_type == "mcp" else []
-
 lines.extend([
     "",
     f"⚠ A marketplace tool scores higher than '{cc_tool}' ({cc_type_label}) for this task.",
@@ -451,7 +408,6 @@ lines.extend([
     f"  1. Say 'proceed' to continue with '{cc_tool}' (one-time bypass, no restart needed)",
     install_line,
     "  3. Ignore Dispatch for this task — say 'skip dispatch'",
-] + mcp_safety + [
     "",
     "Present these options to the user. Wait for their response before taking any action.",
 ])

@@ -143,37 +143,6 @@ def get_category() -> str:
         return "unknown"
 
 
-def get_subcategory() -> str:
-    """Read the last detected subcategory_id from state.json."""
-    try:
-        with open(STATE_FILE) as f:
-            d = json.load(f)
-        return d.get("last_subcategory", "")
-    except Exception:
-        return ""
-
-
-def get_leaf_node() -> str:
-    """Read the last detected leaf_node_id from state.json."""
-    try:
-        with open(STATE_FILE) as f:
-            d = json.load(f)
-        return d.get("last_leaf_node", "")
-    except Exception:
-        return ""
-
-
-def get_tags() -> list:
-    """Read the last detected tags from state.json."""
-    try:
-        with open(STATE_FILE) as f:
-            d = json.load(f)
-        tags = d.get("last_tags", [])
-        return tags if isinstance(tags, list) else []
-    except Exception:
-        return []
-
-
 def get_seen_alerts(seen_file: str = None) -> set:
     """Load seen_alerts.json. Returns set of tool name strings. Empty set on failure."""
     path = seen_file or SEEN_ALERTS_FILE
