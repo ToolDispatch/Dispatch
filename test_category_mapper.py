@@ -13,7 +13,7 @@ SAMPLE_CATEGORIES = [
         "example_tools": []
     },
     {
-        "id": "database",
+        "id": "data-storage",
         "label": "Database & SQL",
         "search_terms": ["database", "sql", "postgres", "supabase", "rls"],
         "example_tools": []
@@ -55,10 +55,10 @@ class TestMapToCategory(unittest.TestCase):
         result = map_to_category("github-shipping", SAMPLE_CATEGORIES)
         assert result == "source-control"
 
-    def test_maps_supabase_to_database(self):
+    def test_maps_supabase_to_data_storage(self):
         from category_mapper import map_to_category
         result = map_to_category("supabase-rls-policy", SAMPLE_CATEGORIES)
-        assert result == "database"
+        assert result == "data-storage"
 
     def test_maps_flutter_to_mobile(self):
         from category_mapper import map_to_category

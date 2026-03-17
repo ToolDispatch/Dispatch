@@ -18,18 +18,18 @@ GLAMA_API = "https://glama.ai/api/mcp/v1/servers"
 OFFICIAL_PLUGINS_URL = "https://raw.githubusercontent.com/anthropics/claude-plugins-official/main/.claude-plugin/marketplace.json"
 OFFICIAL_PLUGINS_CACHE_KEY = "_official_plugins"
 
-# Maps official plugin category labels → our MECE category IDs
+# Maps official plugin category labels → our MECE category IDs (v2 taxonomy)
 PLUGIN_CAT_MAP = {
-    "database": "database",
-    "deployment": "devops-cicd",
+    "database": "data-storage",
+    "deployment": "delivery",
     "design": "frontend",
-    "development": "backend-frameworks",
+    "development": "backend",
     "learning": "documentation",
-    "location": "api-integrations",
-    "migration": "database",
-    "monitoring": "monitoring",
-    "productivity": "backend-frameworks",
-    "security": "auth-identity",
+    "location": "integrations",
+    "migration": "data-storage",
+    "monitoring": "observability",
+    "productivity": "backend",
+    "security": "identity-security",
     "testing": "testing",
 }
 
