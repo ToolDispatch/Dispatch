@@ -69,7 +69,7 @@ except Exception:
     try: os.unlink(tmp)
     except: pass
 " 2>/dev/null || true
-    echo "[Dispatch is active and monitoring your session. It will surface better tools when it detects a task shift. No action needed — it runs silently in the background.]"
+    echo "[Dispatch is active. When you start a new type of task, it will recommend the best available plugins, skills, and MCPs — right here in context, grouped by type. Not sure which to pick? Just ask.]"
 fi
 
 # ── Load hosted config (token + endpoint) ─────────────────────────────────
@@ -376,6 +376,20 @@ log_unknown_category(sys.argv[2])
 " "$SKILL_ROUTER_DIR" "$TASK_TYPE" 2>/dev/null || true
 fi
 
+# ── Read last recommended category (once-per-category-per-session gate) ──
+LAST_RECOMMENDED_CATEGORY=$(python3 -c "
+import sys
+sys.path.insert(0, sys.argv[1])
+from interceptor import get_last_recommended_category
+print(get_last_recommended_category())
+" "$SKILL_ROUTER_DIR" 2>/dev/null || echo "")
+
+# ── Extract preferred tool type hint from classifier ──────────────────────
+PREFERRED_TOOL_TYPE=$(python3 -c "
+import json, sys
+print(json.loads(sys.argv[1]).get('preferred_tool_type', '') or '')
+" "$CLASSIFICATION" 2>/dev/null || echo "")
+
 # ── Read previous cwd before state write (for rescan check) ──────────────
 PREV_CWD=$(python3 -c "
 import json
@@ -444,6 +458,119 @@ sys.path.insert(0, sys.argv[1])
 from stack_scanner import scan_and_save
 scan_and_save(sys.argv[2])
 " "$SKILL_ROUTER_DIR" "$CWD" 2>/dev/null || true
+fi
+
+# ── Stage 3: Proactive recommendations ────────────────────────────────────
+# Fires only when category changes (once-per-category-per-session).
+# Outputs grouped recommendations to stdout — CC injects before response.
+if [ "$CATEGORY" != "unknown" ] && [ "$CATEGORY" != "$LAST_RECOMMENDED_CATEGORY" ]; then
+    STAGE3_OUTPUT=$(python3 -c "
+import sys, json, signal
+sys.path.insert(0, sys.argv[1])
+
+task_type       = sys.argv[2]
+category_id     = sys.argv[3]
+context_snippet = sys.argv[4]
+preferred_type  = sys.argv[5] if len(sys.argv) > 5 else ''
+
+def _timeout_handler(signum, frame):
+    raise TimeoutError('stage3 timeout')
+
+signal.signal(signal.SIGALRM, _timeout_handler)
+signal.alarm(4)
+
+try:
+    from evaluator import recommend_tools
+
+    stack_profile = {}
+    try:
+        from interceptor import STATE_FILE
+        cwd = json.load(open(STATE_FILE)).get('last_cwd', '')
+        if cwd:
+            from stack_scanner import get_stack_profile
+            stack_profile = get_stack_profile(cwd) or {}
+    except Exception:
+        pass
+
+    result = recommend_tools(
+        task_type=task_type,
+        context_snippet=context_snippet,
+        category_id=category_id,
+        stack_profile=stack_profile,
+        preferred_type=preferred_type or None,
+    )
+
+    signal.alarm(0)
+
+    by_type = result.get('by_type', {})
+    plugins = by_type.get('plugin', [])
+    skills  = by_type.get('skill', [])
+    mcps    = by_type.get('mcp', [])
+
+    # Only output if at least one section has results
+    if not plugins and not skills and not mcps:
+        print('')
+        sys.exit(0)
+
+    def fmt_tool(t):
+        name = t.get('name', '')
+        reason = (t.get('reason', '') or '').rstrip('.')
+        install_cmd = t.get('install_cmd', '')
+        # Display name: strip prefixes for readability
+        if name.startswith('plugin:anthropic:'):
+            display = name[len('plugin:anthropic:'):]
+        elif name.startswith('plugin:'):
+            display = name[7:]
+        elif name.startswith('mcp:'):
+            display = name[4:]
+        else:
+            display = name
+        lines = [f'  \u2022 {display} \u2014 {reason}.']
+        if install_cmd:
+            lines.append(f'    Install: {install_cmd}')
+        return '\n'.join(lines)
+
+    sections = []
+    sections.append(f'[Dispatch] Recommended tools for this {task_type} task:')
+
+    if plugins:
+        sections.append('')
+        sections.append('Plugins:')
+        for t in plugins:
+            sections.append(fmt_tool(t))
+
+    if skills:
+        sections.append('')
+        sections.append('Skills:')
+        for t in skills:
+            sections.append(fmt_tool(t))
+
+    if mcps:
+        sections.append('')
+        sections.append('MCPs:')
+        for t in mcps:
+            sections.append(fmt_tool(t))
+
+    sections.append('')
+    sections.append('Not sure which to pick? Ask me \u2014 I can explain the differences.')
+
+    print('\n'.join(sections))
+
+except TimeoutError:
+    print('')
+except Exception:
+    print('')
+" "$SKILL_ROUTER_DIR" "$TASK_TYPE" "$CATEGORY" "$CONTEXT_SNIPPET" "$PREFERRED_TOOL_TYPE" 2>/dev/null || echo "")
+
+    if [ -n "$STAGE3_OUTPUT" ] && [ "$STAGE3_OUTPUT" != "" ]; then
+        echo "$STAGE3_OUTPUT"
+        python3 -c "
+import sys
+sys.path.insert(0, sys.argv[1])
+from interceptor import write_last_recommended_category
+write_last_recommended_category(sys.argv[2])
+" "$SKILL_ROUTER_DIR" "$CATEGORY" 2>/dev/null || true
+    fi
 fi
 
 exit 0
