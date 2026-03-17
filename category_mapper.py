@@ -102,13 +102,18 @@ def map_to_category(task_type: str, categories: list = None) -> Optional[str]:
     if categories is None:
         categories = load_categories()
 
-    task_normalized = task_type.lower().replace("-", " ")
+    task_words = set(task_type.lower().replace("-", " ").split())
 
+    best_cat = None
+    best_len = 0
     for cat in categories:
         for term in cat.get("search_terms", []):
-            if term.lower().replace("-", " ") in task_normalized:
-                return cat["id"]
-    return None
+            term_words = term.lower().replace("-", " ").split()
+            if all(w in task_words for w in term_words):
+                if len(term_words) > best_len:
+                    best_len = len(term_words)
+                    best_cat = cat["id"]
+    return best_cat
 
 
 def log_unknown_category(task_type: str, log_file: str = None):
