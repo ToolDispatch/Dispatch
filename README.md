@@ -95,11 +95,11 @@ Start a **new** Claude Code session after install — hooks load at session star
 
 ### Free — start here
 
-[Sign up with GitHub](https://dispatch.visionairy.biz/auth/github) — no API key, no card required. `install.sh` will ask for your token.
+[Sign up with GitHub](https://dispatch.visionairy.biz/auth/github) — no API key, no card required. `install.sh` will ask for your token. Takes 30 seconds.
 
 - 8 interceptions/day
-- Haiku ranking
-- Live marketplace search
+- Full proactive recommendations on every task shift
+- Live marketplace search across skills, plugins, and MCPs
 
 **What leaves your machine:** your last ~3 messages and working directory path, sent to classify the task. Not stored — we keep your GitHub username, usage count, and task type labels (e.g., `flutter-fixing`). No conversation content.
 
@@ -113,34 +113,38 @@ Start a **new** Claude Code session after install — hooks load at session star
 
 - **Unlimited interceptions**
 - **Sonnet for ranking** — sharper scores, better reasons, fewer misses
-- **Pre-ranked catalog** — tools scored daily from real install data and GitHub signal, not live search. Faster and more accurate
-- **Network intelligence** — every confirmed install across all Pro users feeds back into catalog scores. The longer you run it, the better it gets at knowing which tools actually work for your stack
+- **Pre-ranked catalog** — 6 sources crawled daily and scored from real install data and GitHub signal. Not a live search — a ranked view of what actually works
+- **Network intelligence** — every confirmed install across all Pro users feeds back into catalog scores. The longer you run it, the better it gets at knowing which tools work for your exact stack
+- **<200ms intercept responses** — instant, no live search latency
 - **Full dashboard** — interception history, block rate, top tools, conversion tracking
 
-The catalog is the compounding advantage. BYOK and Free users get a snapshot of the marketplace in real time. Pro users get a ranked, signal-weighted view built from aggregate behavior across the whole network — and it improves every day.
+The catalog is the compounding advantage. A solo BYOK install is blind — it sees a live snapshot of the marketplace and nothing else. The hosted version sees what thousands of developers actually installed after a Dispatch suggestion, which tools they bypassed, and which ones stuck. That signal builds over time and no local setup can replicate it.
 
 ---
 
-### BYOK — air-gapped or enterprise environments
+### BYOK — for developers who need full local control
 
-If your security policy prohibits sending any data to external services:
+If your security policy requires that zero data leaves your machine:
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-Dispatch runs entirely locally. No account, no data leaves your machine. You lose the catalog intelligence, Sonnet ranking, and dashboard — but the core intercept loop works and proactive recommendations are enabled. API costs are negligible (~$0.00005/session).
+No account needed. Everything runs locally — classification, ranking, recommendations. You lose the collective catalog intelligence, the pre-ranked database, Sonnet ranking, and the dashboard. What you get is a fully air-gapped setup that works entirely on your machine.
+
+Most developers don't need this. If you're not in a restricted environment, [start with Free](https://dispatch.visionairy.biz/auth/github).
 
 | | Free | Pro | BYOK |
 |---|---|---|---|
 | **Proactive recommendations** | ✓ | ✓ | ✓ |
 | **Interceptions/day** | 8 | Unlimited | Unlimited |
-| **Ranking model** | Haiku | Sonnet | Haiku |
-| **Catalog** | Live search | Pre-ranked + network signal | Live search only |
-| **Dashboard** | — | ✓ | — |
+| **Ranking model** | Haiku | Sonnet | Haiku (your API cost) |
+| **Catalog sources** | 3, live search (~2–4s) | 6, pre-ranked (<200ms) | 3, live search (~2–4s) |
 | **Network intelligence** | — | ✓ | — |
-| **Cost** | Free | $10/month | API costs (~$0) |
+| **Dashboard** | — | ✓ | — |
+| **Cost** | Free | $10/month | API costs |
 | **Data sharing** | Task labels only | Task labels only | None |
+| **Setup** | GitHub login, 30s | GitHub login, 30s | Manual API key |
 
 ---
 
@@ -317,7 +321,7 @@ The Claude Code plugin ecosystem is genuinely underutilized. Most developers ins
 
 Dispatch is the runtime layer that was missing. It knows what you're doing because it reads your conversation. It knows what's available because it searches the marketplace. It connects them automatically — proactively surfacing options when you shift tasks, and blocking when Claude is about to reach for something weaker.
 
-Run it with your own key if you want — it works. The hosted version knows something your local copy doesn't: what tools other developers reach for when they're doing exactly what you're doing right now. That signal compounds over time.
+The hosted version knows something a local install can never know: what tools thousands of other developers actually reached for when they were doing exactly what you're doing right now — and which ones they kept. That signal compounds over time. [Start free.](https://dispatch.visionairy.biz/auth/github)
 
 Built by [Visionairy](https://visionairy.biz). If you're getting serious about AI developer tooling, also check out [Vib8](https://vib8.ai) — AI-powered competitive intelligence for founders.
 

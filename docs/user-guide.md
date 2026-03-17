@@ -17,7 +17,7 @@ bash install.sh
 `install.sh` takes ~2 minutes. It:
 - Checks Python 3.8+ and Node.js are available
 - Registers two hooks in `~/.claude/settings.json`
-- Asks whether you want Hosted (free token) or BYOK (your own Anthropic key)
+- Asks how you want to connect — Hosted (recommended, free token) or BYOK (bring your own Anthropic key, for restricted environments)
 
 ### 2. Get a free token (Hosted mode)
 
@@ -167,16 +167,20 @@ Shows:
 
 ## Plans at a glance
 
-| | Free | Founding Pro | Pro | BYOK |
+| | Free | Founding Pro | Pro | BYOK* |
 |---|---|---|---|---|
 | Proactive recommendations | ✓ | ✓ | ✓ | ✓ |
 | Interceptions/day | 8 | Unlimited | Unlimited | Unlimited |
 | Ranking model | Haiku | Sonnet | Sonnet | Haiku |
-| Catalog | Live search (~2–4s) | Pre-ranked (<200ms) | Pre-ranked (<200ms) | Live search (~2–4s) |
-| Dashboard | Upgrade teaser | Full history + stats | Full history + stats | — |
-| Cost | Free | $6/month (first 300) | $10/month | API ~$0 |
+| Catalog sources | 3, live (~2–4s) | 6, pre-ranked (<200ms) | 6, pre-ranked (<200ms) | 3, live (~2–4s) |
+| Network intelligence | — | ✓ | ✓ | — |
+| Dashboard | — | ✓ | ✓ | — |
+| Setup | GitHub login | GitHub login | GitHub login | Manual API key |
+| Cost | Free | $6/month (first 300) | $10/month | Your API cost |
 
 **Founding Dispatcher:** First 300 paying users lock in $6/month for life. Once the founding tier fills, new signups pay standard $10/month.
+
+*BYOK is for developers in air-gapped or restricted environments who cannot send any data to external services. If that's not you, [start with Free](https://dispatch.visionairy.biz/auth/github) — it's easier, smarter, and actually free.
 
 ---
 
