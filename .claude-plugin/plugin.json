@@ -1,11 +1,11 @@
 {
   "name": "dispatch",
   "display_name": "Dispatch",
-  "description": "Runtime skill router for Claude Code. Detects task shifts and surfaces the best plugin, MCP server, or agent skill before you start \u2014 so you're always using the right tool.",
-  "version": "0.9.2",
+  "description": "You don't know what you don't know. Neither does Claude Code. Dispatch monitors your conversation, detects task shifts, and proactively surfaces the best plugins, skills, and MCPs — then intercepts when Claude reaches for a weaker tool.",
+  "version": "1.0.0",
   "author": {
     "name": "Visionairy",
-    "url": "https://visionairy.com",
+    "url": "https://visionairy.biz",
     "email": "russ@visionairy.com"
   },
   "license": "MIT",
@@ -14,9 +14,9 @@
   "icon": "../Dispatch Icon.png",
   "keywords": [
     "hooks",
-    "skill-router",
     "plugin-discovery",
     "mcp",
+    "tool-recommendation",
     "productivity",
     "developer-tools",
     "task-detection"
@@ -29,14 +29,14 @@
     "UserPromptSubmit": [
       {
         "type": "command",
-        "command": "bash ~/.claude/hooks/skill-router.sh",
+        "command": "bash ~/.claude/hooks/dispatch.sh",
         "timeout_ms": 10000
       }
     ],
     "PreToolUse": [
       {
         "type": "command",
-        "command": "bash ~/.claude/hooks/preuse-hook.sh",
+        "command": "bash ~/.claude/hooks/dispatch-preuse.sh",
         "timeout_ms": 10000
       }
     ]
