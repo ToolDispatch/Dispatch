@@ -2,14 +2,14 @@
   {
     "id": "source-control",
     "label": "Source Control & GitHub",
-    "search_terms": ["github", "git", "pull-request", "branch", "commit", "merge", "pr", "shipping"],
+    "search_terms": ["github", "git", "pull-request", "branch", "commit", "merge", "pr", "shipping", "gitlab", "bitbucket"],
     "mcp_search_terms": ["github", "gitlab", "gitea", "bitbucket"],
     "example_tools": ["mcp__github__create_pull_request", "gh-cli"]
   },
   {
     "id": "data-storage",
     "label": "Database & SQL",
-    "search_terms": ["database", "sql", "postgres", "supabase", "mysql", "sqlite", "mongodb", "redis", "query", "migration", "schema", "rls"],
+    "search_terms": ["database", "sql", "postgres", "supabase", "mysql", "sqlite", "mongodb", "redis", "query", "migration", "schema", "rls", "firebase", "prisma", "drizzle", "dynamodb", "neon"],
     "mcp_search_terms": ["postgresql", "mysql", "mongodb", "redis", "supabase", "sqlite", "database"],
     "example_tools": ["mcp__supabase__execute_sql", "supabase-postgres-best-practices"]
   },
@@ -23,7 +23,7 @@
   {
     "id": "frontend",
     "label": "Frontend & UI Frameworks",
-    "search_terms": ["react", "vue", "angular", "nextjs", "svelte", "html", "css", "tailwind", "component", "ui", "frontend"],
+    "search_terms": ["react", "vue", "angular", "nextjs", "svelte", "html", "css", "tailwind", "component", "ui", "frontend", "vite", "remix", "astro", "nuxt", "sveltekit", "storybook"],
     "mcp_search_terms": ["figma", "storybook", "vercel", "netlify"],
     "example_tools": []
   },
@@ -37,21 +37,21 @@
   {
     "id": "ai-ml",
     "label": "AI & ML Pipelines",
-    "search_terms": ["langchain", "llamaindex", "openai", "rag", "llm", "agent", "ml", "vector-store"],
+    "search_terms": ["langchain", "llamaindex", "openai", "rag", "llm", "agent", "ml", "vector-store", "anthropic", "gemini", "huggingface", "embeddings", "finetuning"],
     "mcp_search_terms": ["openai", "anthropic", "huggingface", "langchain", "replicate", "groq"],
     "example_tools": []
   },
   {
     "id": "testing",
     "label": "Testing & QA",
-    "search_terms": ["test", "jest", "pytest", "playwright", "vitest", "cypress", "unit", "e2e", "mock", "spec"],
+    "search_terms": ["test", "jest", "pytest", "playwright", "vitest", "cypress", "unit", "e2e", "mock", "spec", "tests", "review", "reviewing", "coverage", "linting"],
     "mcp_search_terms": ["playwright", "selenium", "browserstack", "testing"],
     "example_tools": []
   },
   {
     "id": "delivery",
     "label": "DevOps & CI/CD",
-    "search_terms": ["docker", "kubernetes", "github-actions", "cicd", "deploy", "pipeline", "helm", "k8s", "container"],
+    "search_terms": ["docker", "kubernetes", "github-actions", "cicd", "deploy", "pipeline", "helm", "k8s", "container", "vercel", "netlify", "render", "fly", "railway"],
     "mcp_search_terms": ["docker", "kubernetes", "jenkins", "circleci", "github-actions", "helm"],
     "example_tools": []
   },
@@ -65,7 +65,7 @@
   {
     "id": "integrations",
     "label": "APIs & Third-Party Integrations",
-    "search_terms": ["webhook", "rest", "graphql", "slack", "twilio", "sendgrid", "integration", "zapier"],
+    "search_terms": ["webhook", "rest", "graphql", "slack", "twilio", "sendgrid", "integration", "zapier", "n8n", "make", "automation"],
     "mcp_search_terms": ["slack", "linear", "jira", "notion", "asana", "zendesk", "hubspot", "twilio"],
     "example_tools": []
   },
@@ -79,7 +79,7 @@
   {
     "id": "observability",
     "label": "Monitoring & Observability",
-    "search_terms": ["sentry", "datadog", "logging", "metrics", "tracing", "observability", "monitoring", "alert"],
+    "search_terms": ["sentry", "datadog", "logging", "metrics", "tracing", "observability", "monitoring", "alert", "grafana", "prometheus"],
     "mcp_search_terms": ["sentry", "datadog", "grafana", "pagerduty", "newrelic"],
     "example_tools": []
   },
@@ -100,7 +100,7 @@
   {
     "id": "backend",
     "label": "Backend Frameworks",
-    "search_terms": ["express", "fastapi", "django", "rails", "nestjs", "fastify", "flask", "backend", "server", "api"],
+    "search_terms": ["express", "fastapi", "django", "rails", "nestjs", "fastify", "flask", "backend", "server", "api", "typescript", "golang", "rust", "java", "spring", "nodejs", "node", "php", "laravel", "refactor", "refactoring"],
     "mcp_search_terms": ["fastapi", "django", "express", "rails", "server"],
     "example_tools": []
   },

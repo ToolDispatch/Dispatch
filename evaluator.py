@@ -582,7 +582,8 @@ def build_recommendation_list(
     model: str = None,
     category_id: str = None,
     stack_profile: dict = None,
-    cc_tool_type: str = "skill"
+    cc_tool_type: str = "skill",
+    cwd_basename: str = None,
 ) -> dict:
     """Search marketplace registry and rank against CC's chosen tool.
 
@@ -633,6 +634,8 @@ def build_recommendation_list(
     # Include cc_tool_type in context so ranker understands what CC was using
     type_hint = f"\nCC tool type: {cc_tool_type}" if cc_tool_type and cc_tool_type != "skill" else ""
     effective_context = (context_snippet or "")
+    if cwd_basename:
+        effective_context = f"Project: {cwd_basename}\n{effective_context}".strip()
     if stack_context:
         effective_context = f"{effective_context}\n{stack_context}".strip()
     if type_hint:
@@ -739,6 +742,7 @@ def recommend_tools(
     stack_profile: dict = None,
     preferred_type: str = None,
     model: str = None,
+    cwd_basename: str = None,
 ) -> dict:
     """Proactive recommendation — no cc_tool comparison.
 
@@ -777,7 +781,8 @@ def recommend_tools(
             if terms:
                 stack_hint = "\nDeveloper stack: " + ", ".join(terms[:6])
 
-        context_line = f"\nTask context: \"{(context_snippet or '')[:200]}\""
+        project_line = f"Project: {cwd_basename}\n" if cwd_basename else ""
+        context_line = f"\n{project_line}Task context: \"{(context_snippet or '')[:200]}\""
         if stack_hint:
             context_line += stack_hint
 

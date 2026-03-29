@@ -502,10 +502,13 @@ try:
     from evaluator import recommend_tools
 
     stack_profile = {}
+    cwd_basename = ''
     try:
         from interceptor import STATE_FILE
+        import os
         cwd = json.load(open(STATE_FILE)).get('last_cwd', '')
         if cwd:
+            cwd_basename = os.path.basename(cwd)
             from stack_scanner import load_stack_profile
             stack_profile = load_stack_profile() or {}
     except Exception:
@@ -517,6 +520,7 @@ try:
         category_id=category_id,
         stack_profile=stack_profile,
         preferred_type=preferred_type or None,
+        cwd_basename=cwd_basename or None,
     )
 
     signal.alarm(0)

@@ -205,6 +205,16 @@ from interceptor import get_category
 print(get_category())
 " "$SKILL_ROUTER_DIR" 2>/dev/null || echo "unknown")
 
+CWD_BASENAME=$(python3 -c "
+import sys, json, os
+try:
+    d = json.load(open(sys.argv[1]))
+    cwd = d.get('last_cwd', '')
+    print(os.path.basename(cwd) if cwd else '')
+except:
+    print('')
+" "$STATE_FILE" 2>/dev/null || echo "")
+
 # ── Check conversion: did user install our last suggested tool? ────────────
 if [ -n "$DISPATCH_TOKEN" ]; then
     CONVERTED=$(python3 -c "
@@ -299,8 +309,8 @@ if cwd:
         stack_profile = load_stack_profile() or {}
     except Exception:
         pass
-print(json.dumps(build_recommendation_list(sys.argv[1], context_snippet=sys.argv[2], cc_tool=sys.argv[4], category_id=sys.argv[5], cc_tool_type=sys.argv[6], stack_profile=stack_profile)))
-" "$TASK_TYPE" "$CONTEXT_SNIPPET" "$SKILL_ROUTER_DIR" "$CC_TOOL" "$CATEGORY" "$CC_TOOL_TYPE" 2>/dev/null || echo '{"all":[],"cc_score":0}')
+print(json.dumps(build_recommendation_list(sys.argv[1], context_snippet=sys.argv[2], cc_tool=sys.argv[4], category_id=sys.argv[5], cc_tool_type=sys.argv[6], stack_profile=stack_profile, cwd_basename=sys.argv[7])))
+" "$TASK_TYPE" "$CONTEXT_SNIPPET" "$SKILL_ROUTER_DIR" "$CC_TOOL" "$CATEGORY" "$CC_TOOL_TYPE" "$CWD_BASENAME" 2>/dev/null || echo '{"all":[],"cc_score":0}')
     fi
 else
     # BYOK path
@@ -320,8 +330,8 @@ if cwd:
         stack_profile = load_stack_profile() or {}
     except Exception:
         pass
-print(json.dumps(build_recommendation_list(sys.argv[1], context_snippet=sys.argv[2], cc_tool=sys.argv[4], category_id=sys.argv[5], cc_tool_type=sys.argv[6], stack_profile=stack_profile)))
-" "$TASK_TYPE" "$CONTEXT_SNIPPET" "$SKILL_ROUTER_DIR" "$CC_TOOL" "$CATEGORY" "$CC_TOOL_TYPE" 2>/dev/null || echo '{"all":[],"cc_score":0}')
+print(json.dumps(build_recommendation_list(sys.argv[1], context_snippet=sys.argv[2], cc_tool=sys.argv[4], category_id=sys.argv[5], cc_tool_type=sys.argv[6], stack_profile=stack_profile, cwd_basename=sys.argv[7])))
+" "$TASK_TYPE" "$CONTEXT_SNIPPET" "$SKILL_ROUTER_DIR" "$CC_TOOL" "$CATEGORY" "$CC_TOOL_TYPE" "$CWD_BASENAME" 2>/dev/null || echo '{"all":[],"cc_score":0}')
 fi
 
 # ── Check threshold: any marketplace tool beats CC by >= THRESHOLD? ────────
