@@ -8,3 +8,4 @@ npx_cache.json
 *Zone.Identifier
 claude.md
 .worktrees/
+.gstack/

@@ -434,8 +434,7 @@ class TestAtomicWrite(unittest.TestCase):
             calls.append(a[0])
             return orig(*a, **kw)
         with patch.object(interceptor, "_atomic_write", tracked):
-            interceptor.write_bypass.__globals__["STATE_FILE"] = self.state_file
-            interceptor.write_bypass("Skill")
+            interceptor.write_bypass("Skill", state_file=self.state_file)
         assert len(calls) == 1
 
     def test_state_file_valid_json_after_write(self):
@@ -545,6 +544,55 @@ class TestLastRecommendedCategory(unittest.TestCase):
             assert result == ""
         finally:
             os.unlink(tmp)
+
+
+class TestSessionCounters(unittest.TestCase):
+
+    def setUp(self):
+        self.tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
+        json.dump({}, self.tmp)
+        self.tmp.close()
+        self.state_file = self.tmp.name
+
+    def tearDown(self):
+        os.unlink(self.state_file)
+
+    def test_increment_initializes_counters_on_new_session(self):
+        from interceptor import increment_session_counter, get_session_stats
+        increment_session_counter("session_audits", "sess-abc", state_file=self.state_file)
+        stats = get_session_stats(state_file=self.state_file)
+        self.assertEqual(stats["audits"], 1)
+        self.assertEqual(stats["blocks"], 0)
+        self.assertEqual(stats["recommendations"], 0)
+
+    def test_increment_accumulates_within_session(self):
+        from interceptor import increment_session_counter, get_session_stats
+        increment_session_counter("session_audits", "sess-abc", state_file=self.state_file)
+        increment_session_counter("session_audits", "sess-abc", state_file=self.state_file)
+        increment_session_counter("session_blocks", "sess-abc", state_file=self.state_file)
+        stats = get_session_stats(state_file=self.state_file)
+        self.assertEqual(stats["audits"], 2)
+        self.assertEqual(stats["blocks"], 1)
+
+    def test_increment_resets_on_new_session_id(self):
+        from interceptor import increment_session_counter, get_session_stats
+        increment_session_counter("session_audits", "sess-old", state_file=self.state_file)
+        increment_session_counter("session_audits", "sess-old", state_file=self.state_file)
+        # New session — should reset
+        increment_session_counter("session_audits", "sess-new", state_file=self.state_file)
+        stats = get_session_stats(state_file=self.state_file)
+        self.assertEqual(stats["audits"], 1)
+
+    def test_get_session_stats_returns_zeros_on_missing_file(self):
+        from interceptor import get_session_stats
+        stats = get_session_stats(state_file="/nonexistent/path/state.json")
+        self.assertEqual(stats, {"audits": 0, "blocks": 0, "recommendations": 0})
+
+    def test_increment_recommendations_counter(self):
+        from interceptor import increment_session_counter, get_session_stats
+        increment_session_counter("session_recommendations", "sess-abc", state_file=self.state_file)
+        stats = get_session_stats(state_file=self.state_file)
+        self.assertEqual(stats["recommendations"], 1)
 
 
 if __name__ == "__main__":

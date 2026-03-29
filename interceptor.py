@@ -70,10 +70,11 @@ def extract_cc_tool(tool_name: str, tool_input) -> str:
     return tool_name
 
 
-def check_bypass(tool_name: str) -> bool:
+def check_bypass(tool_name: str, state_file: str = None) -> bool:
     """Return True if there is an active bypass token for this tool."""
+    path = state_file or STATE_FILE
     try:
-        with open(STATE_FILE) as f:
+        with open(path) as f:
             d = json.load(f)
         bypass = d.get("bypass", {})
         if bypass.get("tool_name") == tool_name:
@@ -84,23 +85,25 @@ def check_bypass(tool_name: str) -> bool:
     return False
 
 
-def clear_bypass(tool_name: str):
+def clear_bypass(tool_name: str, state_file: str = None):
     """Remove the bypass token for this tool."""
+    path = state_file or STATE_FILE
     try:
-        with open(STATE_FILE) as f:
+        with open(path) as f:
             d = json.load(f)
         if d.get("bypass", {}).get("tool_name") == tool_name:
             d.pop("bypass", None)
-            _atomic_write(STATE_FILE, d)
+            _atomic_write(path, d)
     except Exception:
         pass
 
 
-def write_bypass(tool_name: str):
+def write_bypass(tool_name: str, state_file: str = None):
     """Write a one-time bypass token so the user can proceed past a block."""
+    path = state_file or STATE_FILE
     try:
         try:
-            with open(STATE_FILE) as f:
+            with open(path) as f:
                 d = json.load(f)
         except Exception:
             d = {}
@@ -108,7 +111,7 @@ def write_bypass(tool_name: str):
             "tool_name": tool_name,
             "expires": time.time() + BYPASS_TTL
         }
-        _atomic_write(STATE_FILE, d)
+        _atomic_write(path, d)
     except Exception:
         pass
 
@@ -296,6 +299,49 @@ def write_last_recommended_category(category: str, state_file: str = None) -> No
         _atomic_write(path, state)
     except Exception:
         pass
+
+
+def increment_session_counter(field: str, session_id: str, state_file: str = None) -> None:
+    """Increment a session counter field, resetting all counters if session_id changed.
+
+    Called by preuse_hook.sh (session_audits, session_blocks) and dispatch.sh
+    (session_recommendations). Resets on session boundary detection via session_id.
+    """
+    path = state_file or STATE_FILE
+    try:
+        try:
+            with open(path) as f:
+                state = json.load(f)
+        except Exception:
+            state = {}
+        if state.get("session_id") != session_id:
+            state["session_id"] = session_id
+            state["session_audits"] = 0
+            state["session_blocks"] = 0
+            state["session_recommendations"] = 0
+        state[field] = state.get(field, 0) + 1
+        _atomic_write(path, state)
+    except Exception:
+        pass
+
+
+def get_session_stats(state_file: str = None) -> dict:
+    """Return session counters for the Stop hook digest.
+
+    Returns dict with 'audits', 'blocks', 'recommendations'. Safe to call
+    even if state.json is missing — returns all zeros.
+    """
+    path = state_file or STATE_FILE
+    try:
+        with open(path) as f:
+            state = json.load(f)
+        return {
+            "audits": state.get("session_audits", 0),
+            "blocks": state.get("session_blocks", 0),
+            "recommendations": state.get("session_recommendations", 0),
+        }
+    except Exception:
+        return {"audits": 0, "blocks": 0, "recommendations": 0}
 
 
 def check_conversion(installed_names: list, state_file: str = None) -> bool:

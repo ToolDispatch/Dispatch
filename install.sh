@@ -91,6 +91,8 @@ cp dispatch.sh "$HOOKS_DIR/dispatch.sh"
 chmod +x "$HOOKS_DIR/dispatch.sh"
 cp preuse_hook.sh "$HOOKS_DIR/dispatch-preuse.sh"
 chmod +x "$HOOKS_DIR/dispatch-preuse.sh"
+cp stop_hook.sh "$HOOKS_DIR/dispatch-stop.sh"
+chmod +x "$HOOKS_DIR/dispatch-stop.sh"
 
 # ── Install /dispatch status skill ────────────────────────────────────────
 SKILLS_DIR="$HOME/.claude/skills/dispatch-status"
@@ -170,6 +172,41 @@ with open(settings_path, "w") as f:
     json.dump(settings, f, indent=2)
 
 print("Registered PreToolUse hook in settings.json")
+PYEOF
+
+python3 - <<PYEOF
+import json, sys, os
+
+settings_path = "$SETTINGS"
+hook_cmd = "bash $HOOKS_DIR/dispatch-stop.sh"
+
+try:
+    with open(settings_path) as f:
+        settings = json.load(f)
+except (json.JSONDecodeError, IOError):
+    settings = {}
+
+hooks = settings.setdefault("hooks", {})
+
+hook_basename = os.path.basename(hook_cmd.split()[-1])  # e.g. "dispatch-stop.sh"
+for entry in hooks.get("Stop", []):
+    for h in entry.get("hooks", []):
+        if hook_basename in h.get("command", ""):
+            print("Stop hook already registered — skipping.")
+            sys.exit(0)
+
+hooks.setdefault("Stop", []).append({
+    "hooks": [{
+        "type": "command",
+        "command": hook_cmd,
+        "timeout_ms": 3000
+    }]
+})
+
+with open(settings_path, "w") as f:
+    json.dump(settings, f, indent=2)
+
+print("Registered Stop hook in settings.json")
 PYEOF
 
 # ── Auth / API key setup ───────────────────────────────────────────────────
