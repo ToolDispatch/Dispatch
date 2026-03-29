@@ -91,10 +91,58 @@ def load_categories() -> list:
         return []
 
 
+
+# Task type prefixes that don't map to a tech domain — the noun after the prefix
+# tells us what category to use. E.g. "dispatch-building" → look at "building" context,
+# fall back to "backend" as a general dev-tooling category.
+# "general-*" and "dispatch-*" are meta-labels Haiku uses when the task is about
+# the tooling/workflow itself rather than a specific technology domain.
+_GENERIC_PREFIX_FALLBACK = {
+    "dispatch": "backend",
+    "general":  "backend",
+    "tooling":  "backend",
+    "coding":   "backend",
+    "software": "backend",
+    "agent":    "backend",
+    "workflow": "integrations",
+    "config":   "delivery",
+    "setup":    "delivery",
+    "install":  "delivery",
+    "deploy":   "delivery",
+    "debug":    "testing",
+    "fix":      "testing",
+    "fixing":   "testing",
+    "debug":    "testing",
+    "debugging":"testing",
+    "test":     "testing",
+    "testing":  "testing",
+    "github":   "source-control",
+    "git":      "source-control",
+    "actions":  "delivery",
+    "document": "documentation",
+    "docs":     "documentation",
+    "api":      "integrations",
+    "data":     "data-storage",
+    "db":       "data-storage",
+    "auth":     "identity-security",
+    "security": "identity-security",
+    "monitor":  "observability",
+    "log":      "observability",
+    "search":   "search-discovery",
+    "ml":       "ai-ml",
+    "ai":       "ai-ml",
+    "llm":      "ai-ml",
+    "payment":  "payments",
+    "billing":  "payments",
+}
+
+
 def map_to_category(task_type: str, categories: list = None) -> Optional[str]:
     """Map a task_type string to a category_id via keyword matching.
 
     Normalizes hyphens to spaces for both task_type and search_terms before matching.
+    Falls back to prefix-based heuristics for meta task types like "dispatch-building"
+    or "general-fixing" that don't contain domain-specific keywords.
     Returns the first matching category_id, or None if no match.
     """
     if not task_type:
@@ -113,7 +161,25 @@ def map_to_category(task_type: str, categories: list = None) -> Optional[str]:
                 if len(term_words) > best_len:
                     best_len = len(term_words)
                     best_cat = cat["id"]
-    return best_cat
+
+    if best_cat:
+        return best_cat
+
+    # Prefix fallback: scan all tokens, prefer specific ones over generic catch-alls.
+    # "general" and "dispatch" are low-priority — only use them if nothing more specific matches.
+    _LOW_PRIORITY = {"general", "dispatch", "tooling", "coding", "software", "agent", "building", "discovering", "designing", "validating"}
+    tokens = task_type.lower().replace("-", " ").split()
+    specific_match = None
+    generic_match = None
+    for token in tokens:
+        if token in _GENERIC_PREFIX_FALLBACK:
+            if token in _LOW_PRIORITY:
+                if generic_match is None:
+                    generic_match = _GENERIC_PREFIX_FALLBACK[token]
+            else:
+                if specific_match is None:
+                    specific_match = _GENERIC_PREFIX_FALLBACK[token]
+    return specific_match or generic_match or None
 
 
 def log_unknown_category(task_type: str, log_file: str = None):

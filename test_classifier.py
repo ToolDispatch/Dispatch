@@ -106,19 +106,17 @@ class TestClassifyTopicShift(unittest.TestCase):
         assert result["task_type"] == "flutter-building"
         assert result["confidence"] == 0.92
 
-    @patch('classifier.anthropic.Anthropic')
-    def test_returns_no_shift_on_continuation(self, mock_client_cls):
-        mock_client = MagicMock()
-        mock_client_cls.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text=json.dumps({
-                "shift": False,
-                "domain": "flutter",
-                "mode": "building",
-                "task_type": "flutter-building",
-                "confidence": 0.95
-            }))]
-        )
+    @patch('classifier.get_client')
+    def test_returns_no_shift_on_continuation(self, mock_get_client):
+        mock_llm = MagicMock()
+        mock_get_client.return_value = mock_llm
+        mock_llm.complete.return_value = json.dumps({
+            "shift": False,
+            "domain": "flutter",
+            "mode": "building",
+            "task_type": "flutter-building",
+            "confidence": 0.95
+        })
         result = classify_topic_shift(
             messages=["add a new screen", "make the button blue"],
             cwd="/home/visionairy/SNAP-app",

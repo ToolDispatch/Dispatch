@@ -3,6 +3,7 @@ import os
 import re
 import requests
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from llm_client import get_client, ranker_model, load_config, FREE_RANKER_MODEL
 
 try:
@@ -11,9 +12,11 @@ except ImportError:
     _load_categories = None
 
 CACHE_FILE = os.path.expanduser("~/.claude/dispatch/npx_cache.json")
-CACHE_TTL = 3600  # 1 hour
+CACHE_TTL = 3600        # 1 hour for registry results
+DESC_CACHE_TTL = 86400  # 24 hours for descriptions
 
 GLAMA_API = "https://glama.ai/api/mcp/v1/servers"
+CLAUDE_PLUGINS_API = "https://claude-plugins.dev/api/skills"
 OFFICIAL_PLUGINS_URL = "https://raw.githubusercontent.com/anthropics/claude-plugins-official/main/.claude-plugin/marketplace.json"
 OFFICIAL_PLUGINS_CACHE_KEY = "_official_plugins"
 
@@ -47,6 +50,91 @@ def _save_cache(cache: dict):
             json.dump(cache, f)
     except Exception:
         pass
+
+
+def _fetch_skill_description(skill_id: str) -> str:
+    """Fetch a SKILL.md description for a single skill from GitHub.
+
+    Tries common path patterns in order:
+      1. skills/{name}/SKILL.md   — most common (obra/superpowers, flutter/skills, etc.)
+      2. {name}/SKILL.md          — flat repo layout
+      3. README.md (first 400 chars) — last resort, gives repo-level context
+
+    Returns description string (may be empty on failure). Never raises.
+    """
+    try:
+        if "@" not in skill_id or "/" not in skill_id:
+            return ""
+        repo_part, skill_name = skill_id.split("@", 1)
+        base = f"https://raw.githubusercontent.com/{repo_part}/main"
+        paths = [
+            f"skills/{skill_name}/SKILL.md",
+            f"{skill_name}/SKILL.md",
+            "README.md",
+        ]
+        for path in paths:
+            try:
+                resp = requests.get(f"{base}/{path}", timeout=2)
+                if resp.status_code != 200:
+                    continue
+                text = resp.text[:800]
+                # Extract frontmatter description field first
+                for line in text.splitlines():
+                    if line.startswith("description:"):
+                        return line.replace("description:", "").strip().strip('"\'')
+                # Fall back: first non-empty non-heading paragraph
+                for line in text.splitlines():
+                    line = line.strip()
+                    if line and not line.startswith("#") and not line.startswith("---") and len(line) > 20:
+                        return line[:200]
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return ""
+
+
+def enrich_descriptions(skills: list) -> list:
+    """Fetch GitHub descriptions for skills missing them. Parallel, cached 24h.
+
+    Mutates each skill dict in place, adding/updating 'description'.
+    Skips skills that already have a description or are in the 24h cache.
+    Uses a thread pool capped at 5 workers to stay within hook budget (~1.5s).
+    """
+    cache = _load_cache()
+    desc_cache = cache.get("_descriptions", {})
+    now = time.time()
+
+    to_fetch = []
+    for skill in skills:
+        sid = skill.get("id", "")
+        if skill.get("description", "").strip():
+            continue  # already have one
+        entry = desc_cache.get(sid, {})
+        if entry and (now - entry.get("fetched_at", 0)) < DESC_CACHE_TTL:
+            skill["description"] = entry.get("description", "")
+        else:
+            to_fetch.append(skill)
+
+    if not to_fetch:
+        return skills
+
+    def fetch_one(s):
+        return s, _fetch_skill_description(s["id"])
+
+    with ThreadPoolExecutor(max_workers=5) as pool:
+        futures = {pool.submit(fetch_one, s): s for s in to_fetch}
+        for future in as_completed(futures, timeout=3):
+            try:
+                skill, desc = future.result()
+                skill["description"] = desc
+                desc_cache[skill["id"]] = {"description": desc, "fetched_at": now}
+            except Exception:
+                pass
+
+    cache["_descriptions"] = desc_cache
+    _save_cache(cache)
+    return skills
 
 RANK_SYSTEM_PROMPT = """You are a plugin recommendation engine for Claude Code.
 Given a detected task type, the tool CC is about to use, and marketplace alternatives,
@@ -149,38 +237,72 @@ def describe_cc_tool(cc_tool: str) -> str:
 
 
 def _search_one_term(term: str, limit: int = 5) -> list:
-    """Search registry for one term. Returns list of {"id", "description"}. Cached 1hr."""
+    """Search claude-plugins.dev for one term. Returns list of {"id", "description"}. Cached 1hr.
+
+    claude-plugins.dev returns descriptions, star counts, and install counts — unlike skills.sh
+    which returns names only. Descriptions are essential for ranker quality.
+    Falls back to skills.sh if claude-plugins.dev is unavailable.
+    """
     cache = _load_cache()
     registry = cache.get("registry", {})
     entry = registry.get(term, {})
     cached_data = entry.get("data", [])
-    # Only use cache if fresh AND data is in new dict format (not legacy bare strings)
     if (entry
             and (time.time() - entry.get("fetched_at", 0)) < CACHE_TTL
             and (not cached_data or isinstance(cached_data[0], dict))):
         return cached_data
+
+    skills = []
     try:
         resp = requests.get(
-            "https://skills.sh/api/search",
-            params={"q": term, "limit": limit},
+            CLAUDE_PLUGINS_API,
+            params={"q": term, "limit": limit * 2},  # fetch more, we'll trim after dedup
             timeout=8,
         )
-        if resp.status_code != 200:
-            return entry.get("data", [])
-        skills = []
-        for skill in resp.json().get("skills", []):
-            source = skill.get("source", "")
-            name = skill.get("name", "")
-            if source and name:
-                skills.append({"id": f"{source}@{name}", "description": ""})
-        skills = skills[:limit]
-        if "registry" not in cache:
-            cache["registry"] = {}
-        cache["registry"][term] = {"data": skills, "fetched_at": time.time()}
-        _save_cache(cache)
-        return skills
+        if resp.status_code == 200:
+            for s in resp.json().get("skills", []):
+                ns = s.get("namespace", "")  # "@owner/repo/skill-name"
+                name = s.get("name", "")
+                desc = (s.get("description") or "")[:300]
+                stars = s.get("stars", 0)
+                installs = s.get("installs", 0)
+                # Derive skill_id in "owner/repo@skill-name" format from namespace
+                if ns and name:
+                    parts = ns.lstrip("@").split("/")
+                    if len(parts) >= 2:
+                        skill_id = f"{parts[0]}/{parts[1]}@{name}"
+                        skills.append({
+                            "id": skill_id,
+                            "description": desc,
+                            "stars": stars,
+                            "installs": installs,
+                        })
     except Exception:
-        return entry.get("data", [])
+        pass
+
+    # Fallback to skills.sh if claude-plugins.dev returned nothing
+    if not skills:
+        try:
+            resp = requests.get(
+                "https://skills.sh/api/search",
+                params={"q": term, "limit": limit},
+                timeout=8,
+            )
+            if resp.status_code == 200:
+                for skill in resp.json().get("skills", []):
+                    source = skill.get("source", "")
+                    name = skill.get("name", "")
+                    if source and name:
+                        skills.append({"id": f"{source}@{name}", "description": ""})
+        except Exception:
+            pass
+
+    skills = skills[:limit]
+    if "registry" not in cache:
+        cache["registry"] = {}
+    cache["registry"][term] = {"data": skills, "fetched_at": time.time()}
+    _save_cache(cache)
+    return skills
 
 
 def _search_glama(term: str, limit: int = 10) -> list:
@@ -275,7 +397,11 @@ def search_registry(task_type: str, limit: int = 5) -> list:
                 results.append(skill)
         if len(results) >= limit:
             break
-    return results[:limit]
+    results = results[:limit]
+    skills_only = [r for r in results if "@" in r.get("id", "") and not r.get("description", "").strip()]
+    if skills_only:
+        enrich_descriptions(skills_only)
+    return results
 
 
 def search_by_category(category_id: str, limit: int = 10) -> list:
@@ -336,7 +462,12 @@ def search_by_category(category_id: str, limit: int = 10) -> list:
         except Exception:
             pass
 
-    return results[:limit]
+    results = results[:limit]
+    # Enrich any skills missing descriptions — parallel GitHub fetch, cached 24h
+    skills_only = [r for r in results if "@" in r.get("id", "") and not r.get("description", "").strip()]
+    if skills_only:
+        enrich_descriptions(skills_only)
+    return results
 
 
 def rank_recommendations(
@@ -367,7 +498,8 @@ def rank_recommendations(
         registry_formatted = []
         for r in registry_results:
             if isinstance(r, dict):
-                registry_formatted.append({"id": r["id"], "desc": r.get("description", "")[:200]})
+                # Trim descriptions to 120 chars — keeps tokens low, latency under 3s
+                registry_formatted.append({"id": r["id"], "desc": r.get("description", "")[:120]})
             else:
                 registry_formatted.append({"id": r, "desc": ""})
 
@@ -378,16 +510,69 @@ Marketplace alternatives (not installed):
 
 Score CC's tool and each marketplace alternative for this {task_type} task."""
 
-        text = llm.complete(system=RANK_SYSTEM_PROMPT, user=user_content, model=effective_model, max_tokens=600)
+        # 5s hard timeout — hook has 10s total, search+enrich takes ~1s, LLM must stay under 5s
+        # Use shutdown(wait=False) so timeout actually cuts off — the with-block would wait
+        _pool = ThreadPoolExecutor(max_workers=1)
+        future = _pool.submit(
+            llm.complete,
+            system=RANK_SYSTEM_PROMPT,
+            user=user_content,
+            model=effective_model,
+            max_tokens=400,
+        )
+        try:
+            text = future.result(timeout=5)
+        except Exception:
+            _pool.shutdown(wait=False)
+            return _signal_rank_fallback(registry_results)
+        _pool.shutdown(wait=False)
+
         if not text:
-            return {"cc_score": 0, "all": []}
+            return _signal_rank_fallback(registry_results)
         parsed = json.loads(text)
         parsed.setdefault("cc_score", 0)
         parsed.setdefault("all", [])
         return parsed
 
     except Exception:
-        return {"cc_score": 0, "all": []}
+        return _signal_rank_fallback(registry_results)
+
+
+def _signal_rank_fallback(registry_results: list) -> dict:
+    """Pure signal-based ranking when LLM is unavailable or too slow.
+
+    Scores each tool 0-100 using: description presence (40pts), install count
+    log-scaled (40pts), star count log-scaled (20pts). No LLM call.
+    Sets cc_score=50 as neutral baseline so tools with descriptions can beat it.
+    """
+    import math
+
+    def log_score(n: int, max_val: int) -> int:
+        if n <= 0:
+            return 0
+        return min(100, int(math.log1p(n) / math.log1p(max_val) * 100))
+
+    scored = []
+    for r in registry_results:
+        if not isinstance(r, dict):
+            continue
+        desc = r.get("description", "").strip()
+        installs = r.get("installs", 0)
+        stars = r.get("stars", 0)
+        desc_score = 40 if desc else 0
+        install_score = log_score(installs, 50000) * 0.4
+        star_score = log_score(stars, 10000) * 0.2
+        total = int(desc_score + install_score + star_score)
+        if total >= 40:
+            scored.append({
+                "name": r["id"],
+                "score": min(100, total),
+                "reason": desc[:100] if desc else "No description available.",
+                "install_cmd": f"npx skills add {r['id']} -y" if "@" in r.get("id", "") else None,
+            })
+
+    scored.sort(key=lambda x: x["score"], reverse=True)
+    return {"cc_score": 50, "all": scored[:5]}
 
 
 def build_recommendation_list(

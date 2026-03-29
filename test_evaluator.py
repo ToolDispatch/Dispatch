@@ -145,7 +145,9 @@ class TestRankRecommendations(unittest.TestCase):
         from evaluator import rank_recommendations
         with patch("evaluator.get_client", side_effect=Exception("no key")):
             result = rank_recommendations("flutter", [], cc_tool="some-tool")
-        assert result == {"cc_score": 0, "all": []}
+        # Signal fallback returns cc_score=50 (neutral baseline) and empty all (no registry results)
+        assert result["all"] == []
+        assert result["cc_score"] == 50
 
     def test_strips_markdown_wrapper(self):
         from evaluator import rank_recommendations
@@ -261,7 +263,9 @@ class TestRankHandlesEmptyContentList(unittest.TestCase):
             mock_get_client.return_value = mock_llm
             mock_llm.complete.return_value = ""
             result = rank_recommendations("flutter", [])
-        assert result == {"cc_score": 0, "all": []}
+        # Signal fallback with no registry results → cc_score=50, empty all
+        assert result["all"] == []
+        assert result["cc_score"] == 50
 
 
 class TestBuildRecommendationListInstallUrl(unittest.TestCase):
