@@ -121,7 +121,8 @@ When something is actually wrong:
   This will throw a TypeError when that code runs.
 
   Fix: remove the third argument, or update rank_tools() to accept it.
-  [apply fix] [show me the diff first] [skip]
+
+  To proceed: say 'show me the diff first', 'skip for now', or 'apply all' (unlocks after 2 verified repairs).
 ```
 
 The four stages:
@@ -131,7 +132,7 @@ The four stages:
 - **Stage 3**: Concrete repair plan — each violation gets one specific file-and-line fix.
 - **Stage 4**: Graduated consent — "show me the diff first" until two verified repairs this session, then "apply all" unlocks. Resets each session.
 
-**Refactor Mode:** `/xfa-refactor start "description"` — XF Audit shifts from blocking to tracking, holds violations until you declare done, presents consolidated repair list at once.
+**Refactor Mode:** `/xfa-refactor start "description"` — XF Audit shifts from blocking to tracking. Violations accumulate without interrupting your work. Run `/xfa-refactor end` when done to get the consolidated repair list. Useful when you're mid-refactor and know the code is temporarily broken across files.
 
 Every scan leaves a record in `.xf/boundary_violations.json`. Every repair is logged to `.xf/repair_log.json` with timestamp and session ID. When something goes wrong in production: the log answers whether XF Audit caught it.
 
@@ -238,15 +239,61 @@ The threshold is a 10-point gap. If the best marketplace alternative scores 72 a
 
 ---
 
+## Commands
+
+### Dispatch
+
+| Command | How to use | What it does |
+|---|---|---|
+| `proceed` | Say it conversationally | One-time bypass — Dispatch lets the current tool call through, no restart needed |
+| `skip dispatch` | Say it conversationally | Ignore Dispatch for this task type for the rest of the session |
+| `/dispatch status` | Slash command | Show session stats — tool calls audited, blocks, recommendations shown |
+
+Coming soon (not yet available):
+
+| Command | What it will do |
+|---|---|
+| `/dispatch pause` | Disable both hooks for this session without uninstalling |
+| `/dispatch resume` | Re-enable after a pause |
+| `/dispatch stack` | Show what stack_scanner detected for the current project |
+| `/dispatch why` | Explain the last block — task type, category, top tool score vs CC score |
+| `/dispatch ignore [tool]` | Permanently exclude a specific tool from all recommendations |
+| `/dispatch feedback good` | Mark the last recommendation as correct (strong positive signal) |
+| `/dispatch feedback bad` | Mark the last recommendation as wrong |
+
+### XF Audit
+
+| Command | How to use | What it does |
+|---|---|---|
+| `/xfa-refactor start "description"` | Slash command | Enter Refactor Mode — violations accumulate without blocking; Claude works uninterrupted |
+| `/xfa-refactor end` | Slash command | Exit Refactor Mode — presents consolidated repair list for everything flagged during the session |
+
+When XF Audit blocks an edit, Claude reads the options from the hook output and acts:
+
+- **Say `show me the diff first`** — Claude shows what the repair would change before applying it
+- **Say `skip for now`** — allow the edit through without repair (violation stays in log)
+- **Say `apply all`** — unlocks after two verified repairs this session; applies all staged repairs at once
+
+Coming soon:
+
+| Command | What it will do |
+|---|---|
+| `/xfa pause` | Disable XF Audit blocking for this session (violations still logged) |
+| `/xfa resume` | Re-enable after a pause |
+| `/xfa report` | Show repair_log.json summary for the current session — violations caught, files touched |
+| `/xfa clear` | Clear open violations in `.xf/boundary_violations.json` (escape hatch for stale violations) |
+
+---
+
 ## How the scoring works
 
 Each recommended tool shows three components so you can judge it yourself:
 
-- **Relevance** — how well the tool's description matches your specific task, scored 0–100 by a fast LLM pass. Tools with no description score 0 and get a visible warning.
-- **Signal** — popularity as a quality proxy: installs (60%), stars (25%), forks (15%), all log-scaled so a newer tool with 500 installs isn't buried by one with 50,000.
-- **Velocity** — install momentum relative to how long the tool has existed. A tool with 200 installs in its first two weeks ranks higher than one with 1,000 installs over three years.
+- **Relevance** — how well the tool's description matches your specific task, scored by a fast LLM pass. Tools with no description score zero and get a visible warning.
+- **Signal** — popularity as a quality proxy, weighted across installs, stars, and forks. Log-scaled so a newer tool with 500 installs isn't buried by one with 50,000.
+- **Velocity** — install momentum relative to how long the tool has existed. A tool gaining traction fast ranks higher than one that peaked years ago.
 
-The weighted score is `relevance × 0.5 + signal × 0.3 + velocity × 0.2`. Dispatch blocks when the top weighted score beats CC's confidence score by 10+ points.
+All three factors contribute to the final score. Dispatch blocks when the top marketplace score beats CC's confidence by a meaningful margin.
 
 Tools are grouped by type (Plugins / Skills / MCPs), up to 3 per group. Raw installs, stars, and forks are shown so you can verify the signal yourself.
 
@@ -396,6 +443,20 @@ Built by [Visionairy](https://visionairy.biz). If you're getting serious about A
 
 ---
 
+## Built with ToolDispatch
+
+ToolDispatch's own codebase is monitored by XF Audit during development. Every edit Claude makes to Dispatch is checked for contract breaks before it lands.
+
+In practice, this meant:
+
+- The **arity checker** caught 12 real violations during an eng review pass — functions being called with the wrong number of arguments across the codebase, all silently waiting to throw TypeErrors at runtime.
+- The **silent exception checker** (added after a production incident) caught the pattern that caused 99 minutes of cron work to go to /dev/null — a bare `except Exception` that printed a warning but reported success regardless.
+- The **stub checker** surfaced unimplemented functions with active callers before they ever reached a user session.
+
+We eat our own cooking. The tool that ships with ToolDispatch is the tool we use to build ToolDispatch.
+
+---
+
 ## Roadmap
 
 - [x] Hosted endpoint (tooldispatch.visionairy.biz)
@@ -411,6 +472,15 @@ Built by [Visionairy](https://visionairy.biz). If you're getting serious about A
 - [x] Proactive recommendations — grouped by type (Plugins/Skills/MCPs) at task shift (Stage 3)
 - [x] Hosted proactive recommendations for Free and Pro
 - [x] Session digest — Stop hook shows what Dispatch did each session
+- [x] `/xfa-refactor start/end` — Refactor Mode for XF Audit
+- [ ] `/dispatch pause/resume` — disable hooks mid-session without uninstalling
+- [ ] `/dispatch stack` — show detected project stack
+- [ ] `/dispatch why` — explain last block decision
+- [ ] `/dispatch ignore [tool]` — permanent per-tool exclusion
+- [ ] `/dispatch feedback good/bad` — explicit recommendation signal
+- [ ] `/xfa pause/resume` — disable XF Audit blocking mid-session
+- [ ] `/xfa report` — session repair summary
+- [ ] `/xfa clear` — clear stale violations
 - [ ] skills.sh distribution (`npx skills add ToolDispatch/Dispatch`)
 - [ ] CC marketplace submission
 - [ ] Weekly new-tool digest email for Pro users
