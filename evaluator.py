@@ -675,18 +675,60 @@ def build_recommendation_list(
             repo_part = name.split("@")[0]
             item["install_url"] = f"https://github.com/{repo_part}"
 
-    # Two-tier split: described tools are best matches, undescribed are general keyword matches
-    described = [t for t in all_tools if t.get("description", "").strip()]
-    general = [t for t in all_tools if not t.get("description", "").strip()]
+    # Enrich each tool with grouped-format fields (BYOK: no catalog signal/velocity)
+    def _tool_type(name: str) -> str:
+        if name.startswith("mcp:"):
+            return "mcp"
+        if name.startswith("plugin:"):
+            return "plugin"
+        return "skill"
 
-    top_pick = described[0] if described else (general[0] if general else None)
+    enriched = []
+    for t in all_tools:
+        name    = t.get("name", "")
+        score   = t.get("score", 0)
+        desc    = (t.get("description") or t.get("reason") or "").strip()
+        no_desc = not bool(desc)
+        enriched.append({
+            "name":           name,
+            "tool_type":      _tool_type(name),
+            "relevance":      score,   # LLM score is the relevance signal for BYOK
+            "signal":         0,
+            "velocity":       0,
+            "weighted":       score,
+            "installs":       t.get("installs", 0),
+            "stars":          t.get("stars", 0),
+            "forks":          t.get("forks", 0),
+            "description":    desc[:150],
+            "install_cmd":    (t.get("install_cmd") or "").strip(),
+            "install_url":    (t.get("install_url") or "").strip(),
+            "no_description": no_desc,
+            "installed":      False,
+        })
+
+    def top3(ttype):
+        group = [t for t in enriched if t["tool_type"] == ttype]
+        return group[:3]
+
+    skills  = top3("skill")
+    mcps    = top3("mcp")
+    plugins = top3("plugin")
+
+    all_grouped = sorted(skills + mcps + plugins, key=lambda t: t["weighted"], reverse=True)
+    max_weighted = all_grouped[0]["weighted"] if all_grouped else 0
+    top_pick = all_grouped[0] if all_grouped else None
+
+    caveat = "Review before installing. Dispatch surfaces tools based on community signals and task context — not a security audit."
 
     return {
-        "all": all_tools,
-        "described": described,
-        "general": general,
-        "top_pick": top_pick,
-        "cc_score": cc_score,
+        "skills":       skills,
+        "mcps":         mcps,
+        "plugins":      plugins,
+        "all":          all_grouped,
+        "top_pick":     top_pick,
+        "cc_score":     cc_score,
+        "max_weighted": max_weighted,
+        "caveat":       caveat,
     }
 
 

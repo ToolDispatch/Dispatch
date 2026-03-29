@@ -296,7 +296,7 @@ class TestBuildRecommendationListInstallUrl(unittest.TestCase):
         }
         result = build_recommendation_list("flutter")
         assert result["top_pick"]["name"] == "top-tool"
-        assert result["top_pick"]["score"] == 90
+        assert result["top_pick"]["relevance"] == 90
 
     @patch('evaluator.search_registry', return_value=[])
     @patch('evaluator.rank_recommendations')
@@ -639,25 +639,25 @@ class TestTwoTierRanking(unittest.TestCase):
              "description": ""},
         ]
 
-    def test_described_tools_in_described_list(self):
-        """Tools with non-empty description go into 'described' list."""
+    def test_described_tools_have_no_description_false(self):
+        """Tools with non-empty description have no_description=False."""
         import evaluator
         with patch.object(evaluator, "search_by_category", return_value=[]), \
              patch.object(evaluator, "rank_recommendations", return_value={
                  "cc_score": 60, "all": self._make_tools()}):
             result = evaluator.build_recommendation_list("flutter-fixing", category_id="mobile-development")
-        described_names = [t["name"] for t in result["described"]]
-        assert "owner/repo@with-desc" in described_names
+        with_desc = next(t for t in result["all"] if t["name"] == "owner/repo@with-desc")
+        assert with_desc["no_description"] is False
 
-    def test_undescribed_tools_in_general_list(self):
-        """Tools without description go into 'general' list."""
+    def test_undescribed_tools_have_no_description_true(self):
+        """Tools without description have no_description=True."""
         import evaluator
         with patch.object(evaluator, "search_by_category", return_value=[]), \
              patch.object(evaluator, "rank_recommendations", return_value={
                  "cc_score": 60, "all": self._make_tools()}):
             result = evaluator.build_recommendation_list("flutter-fixing", category_id="mobile-development")
-        general_names = [t["name"] for t in result["general"]]
-        assert "owner/repo@no-desc" in general_names
+        no_desc = next(t for t in result["all"] if t["name"] == "owner/repo@no-desc")
+        assert no_desc["no_description"] is True
 
     def test_top_pick_comes_from_described_first(self):
         """top_pick is first item from described list, not general."""

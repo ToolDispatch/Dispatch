@@ -331,8 +331,8 @@ try:
     r = json.loads(sys.argv[1])
     cc_score = int(r.get('cc_score', 0))
     threshold = int(sys.argv[2])
-    tools = r.get('all', [])
-    if tools and tools[0].get('score', 0) >= cc_score + threshold:
+    max_weighted = int(r.get('max_weighted', 0))
+    if max_weighted >= cc_score + threshold:
         print('yes')
     else:
         print('no')
@@ -358,7 +358,7 @@ import json, sys
 try:
     r = json.loads(sys.argv[1])
     tools = r.get('all', [])
-    top_score = tools[0].get('score', 0) if tools else 0
+    top_score = int(r.get('max_weighted', 0))
     cc_score = int(r.get('cc_score', 0))
 except:
     top_score = 0
@@ -415,6 +415,7 @@ BLUE   = '\033[94m'
 YELLOW = '\033[93m'
 GRAY   = '\033[90m'
 GREEN  = '\033[92m'
+CYAN   = '\033[96m'
 RESET  = '\033[0m'
 
 cc_tool      = sys.argv[1]
@@ -422,85 +423,109 @@ cc_tool_type = sys.argv[4] if len(sys.argv) > 4 else "skill"
 try:
     recs = json.loads(sys.argv[2])
 except Exception:
-    recs = {"all": [], "top_pick": None, "cc_score": 0}
+    recs = {"skills": [], "mcps": [], "plugins": [], "all": [], "cc_score": 0}
 task_type    = sys.argv[3]
 task_display = task_type.replace("-", " ").title()
 
-all_tools = recs.get("all", [])
-top_pick  = recs.get("top_pick") or (all_tools[0] if all_tools else None)
-cc_score  = recs.get("cc_score", 0)
+skills      = recs.get("skills", [])
+mcps        = recs.get("mcps", [])
+plugins     = recs.get("plugins", [])
+cc_score    = recs.get("cc_score", 0)
+caveat      = recs.get("caveat", "")
 
 cc_type_label = {"mcp": "MCP server", "agent": "Agent", "skill": "Skill"}.get(cc_tool_type, "Skill")
 
-lines = [
-    f"{BLUE}[Dispatch] Intercepted:{RESET} CC is about to use {YELLOW}'{cc_tool}'{RESET} ({cc_type_label}) for {task_display}.",
-    f"{GRAY}CC's tool score for this task: {cc_score}/100{RESET}",
-    "",
-    f"{BLUE}Marketplace alternatives:{RESET}",
-]
+def display_name(name):
+    if name.startswith("mcp:"):
+        return name[4:]
+    if name.startswith("plugin:"):
+        parts = name.split(":", 2)
+        return parts[2] if len(parts) > 2 else name
+    return name
 
-for i, tool in enumerate(all_tools, 1):
+def render_tool(tool, idx):
     name        = tool.get("name", "")
-    score       = tool.get("score", "?")
-    reason      = tool.get("reason", "")
+    rel         = tool.get("relevance", 0)
+    sig         = tool.get("signal", 0)
+    vel         = tool.get("velocity", 0)
+    installs    = tool.get("installs", 0)
+    stars       = tool.get("stars", 0)
+    forks       = tool.get("forks", 0)
     install_cmd = (tool.get("install_cmd") or "").replace("\n", " ").strip()
     install_url = (tool.get("install_url") or "").replace("\n", " ").strip()
-    top_marker  = f" {GREEN}← TOP PICK{RESET}" if (top_pick and name == top_pick.get("name")) else ""
+    no_desc     = tool.get("no_description", False)
+    desc        = (tool.get("description") or "").strip()
 
-    if name.startswith("mcp:"):
-        tool_label   = "MCP"
-        display_name = name[4:]
-    elif name.startswith("plugin:"):
-        parts        = name.split(":", 2)
-        tool_label   = "Plugin"
-        display_name = parts[2] if len(parts) > 2 else name
-    else:
-        tool_label   = "Skill"
-        display_name = name
-
-    lines.append(f"  {i}. {BLUE}{display_name}{RESET} [{tool_label}] {GRAY}[{score}/100]{RESET}{top_marker}")
-    if reason:
-        lines.append(f"     {GRAY}Why: {reason}{RESET}")
+    out = []
+    dn = display_name(name)
+    out.append(f"  {idx}. {BLUE}{dn}{RESET}")
+    score_line = f"     {GRAY}Relevance {rel} · Signal {sig} · Velocity {vel}"
+    score_line += f"  installs:{installs:,} stars:{stars:,} forks:{forks:,}{RESET}"
+    out.append(score_line)
+    if no_desc:
+        out.append(f"     {YELLOW}⚠ no description — install at your own risk{RESET}")
+    elif desc:
+        out.append(f"     {GRAY}{desc[:120]}{RESET}")
     if install_cmd:
-        lines.append(f"     {GRAY}Install + restart: {install_cmd} && claude{RESET}")
-    elif install_url and tool_label == "MCP":
-        lines.append(f"     {GRAY}Install guide: {install_url}{RESET}")
-    if install_url and not (tool_label == "MCP" and not install_cmd):
-        lines.append(f"     {GRAY}More info: {install_url}{RESET}")
+        out.append(f"     {GRAY}Install: {install_cmd} && claude{RESET}")
+    elif install_url:
+        out.append(f"     {GRAY}More info: {install_url}{RESET}")
+    return out
+
+lines = [
+    f"{BLUE}[Dispatch] Intercepted:{RESET} CC is about to use {YELLOW}'{cc_tool}'{RESET} ({cc_type_label}) for {task_display}.",
+    f"{GRAY}CC confidence score: {cc_score}/100{RESET}",
+    "",
+]
+
+if skills:
+    lines.append(f"{CYAN}── Skills ──{RESET}")
+    for i, t in enumerate(skills, 1):
+        lines.extend(render_tool(t, i))
+    lines.append("")
+
+if mcps:
+    lines.append(f"{CYAN}── MCP Servers ──{RESET}")
+    for i, t in enumerate(mcps, 1):
+        lines.extend(render_tool(t, i))
+    lines.append("")
+
+if plugins:
+    lines.append(f"{CYAN}── Plugins ──{RESET}")
+    for i, t in enumerate(plugins, 1):
+        lines.extend(render_tool(t, i))
+    lines.append("")
+
+# Derive top pick for install hint from combined all list
+all_tools = recs.get("all", [])
+top_pick = all_tools[0] if all_tools else None
 
 if top_pick:
     tp_name = top_pick.get("name", "")
+    td = display_name(tp_name)
     if tp_name.startswith("mcp:"):
-        top_display = tp_name[4:]
-        top_type    = "mcp"
+        install_hint = f"  2. Configure {td} — add it to .mcp.json, then restart CC"
     elif tp_name.startswith("plugin:"):
-        parts       = tp_name.split(":", 2)
-        top_display = parts[2] if len(parts) > 2 else tp_name
-        top_type    = "plugin"
+        install_hint = f"  2. Install {td} plugin — run /compact first, then install and restart CC"
     else:
-        top_display = tp_name
-        top_type    = "skill"
+        install_hint = f"  2. Install {td} — run /compact first, then install and restart CC"
 else:
-    top_display = "the top tool"
-    top_type    = "skill"
-
-if top_type == "mcp":
-    install_line = f"  2. Configure {top_display} — add it to .mcp.json, then restart CC"
-elif top_type == "plugin":
-    install_line = f"  2. Install {top_display} plugin — run /compact first, then install and restart CC"
-else:
-    install_line = f"  2. Install {top_display} — run /compact first, then install and restart CC"
+    install_hint = f"  2. Install a tool above — run /compact first, then install and restart CC"
 
 lines.extend([
-    "",
-    f"{YELLOW}⚠ A marketplace tool scores higher than '{cc_tool}' ({cc_type_label}) for this task.{RESET}",
+    f"{YELLOW}⚠ Marketplace tools score higher than '{cc_tool}' ({cc_type_label}) for this task.{RESET}",
     "  Options:",
     f"  1. Say {GREEN}'proceed'{RESET} to continue with '{cc_tool}' (one-time bypass, no restart needed)",
-    install_line,
+    install_hint,
     "  3. Ignore Dispatch for this task — say 'skip dispatch'",
     "",
-    f"{GRAY}Present these options to the user. Wait for their response before taking any action.{RESET}",
 ])
+
+if caveat:
+    lines.append(f"{GRAY}Note: {caveat}{RESET}")
+    lines.append("")
+
+lines.append(f"{GRAY}Present these options to the user. Wait for their response before taking any action.{RESET}")
 
 print("\n".join(lines))
 PYEOF
