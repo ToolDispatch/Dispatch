@@ -3,7 +3,7 @@ import os
 import re
 import requests
 import time
-from llm_client import get_client, ranker_model, load_config
+from llm_client import get_client, ranker_model, load_config, FREE_RANKER_MODEL
 
 try:
     from category_mapper import load_categories as _load_categories
@@ -345,7 +345,7 @@ def rank_recommendations(
     context_snippet: str = None,
     cc_tool: str = None,
     cc_tool_description: str = None,
-    model: str = "claude-haiku-4-5-20251001"
+    model: str = FREE_RANKER_MODEL
 ) -> dict:
     """Score CC's chosen tool + marketplace alternatives collectively.
 
@@ -459,7 +459,7 @@ def build_recommendation_list(
         context_snippet=effective_context or None,
         cc_tool=cc_tool,
         cc_tool_description=cc_desc,
-        model=model or "claude-haiku-4-5-20251001"
+        model=model or FREE_RANKER_MODEL
     )
 
     all_tools = result.get("all", [])
@@ -568,7 +568,7 @@ Rank these tools for this {task_type} task."""
 
         config = load_config()
         llm = get_client(config)
-        effective_model = model or ranker_model(config) or "claude-haiku-4-5-20251001"
+        effective_model = model or ranker_model(config) or FREE_RANKER_MODEL
 
         text = llm.complete(
             system=RECOMMEND_SYSTEM_PROMPT,

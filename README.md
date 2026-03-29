@@ -141,20 +141,23 @@ Start a **new** Claude Code session after install — hooks load at session star
 ```bash
 git clone https://github.com/ToolDispatch/Dispatch.git
 cd Dispatch && ./install.sh
-export ANTHROPIC_API_KEY=sk-ant-...
+export OPENROUTER_API_KEY=sk-or-...   # recommended — free models available
+# or: export ANTHROPIC_API_KEY=sk-ant-...  # any Claude model
 ```
 
-- **Dispatch:** fully functional, unlimited, self-managed API key
-- **XF Audit:** Stage 1 bundled (pure AST, zero API cost) — catches broken imports, arity mismatches, syntax errors on every Edit/Write
-- **Stages 2–4:** upgrade prompt fires in session digest when Stage 2 would have been useful — one line, never mid-conversation, never blocking: `◈ XF Audit would have mapped that cascade. tooltooldispatch.visionairy.biz/pro`
+Bring your own key — OpenRouter or Anthropic. Everything runs on your machine, against your key. No data leaves your network. Set `OPENROUTER_API_KEY` for free inference (Llama, Nemotron, and more) or `ANTHROPIC_API_KEY` for direct Claude access. Override the model in `~/.claude/dispatch/config.json`.
 
-No account needed. Everything runs locally. You lose the catalog network intelligence, Sonnet ranking, and the dashboard.
+- **Dispatch:** fully functional, unlimited interceptions
+- **XF Audit:** Stage 1 bundled (pure AST, zero API cost) — catches broken imports, arity mismatches, syntax errors on every Edit/Write
+- **Stages 2–4:** upgrade prompt fires in session digest when Stage 2 would have been useful — one line, never mid-conversation, never blocking: `◈ XF Audit would have mapped that cascade. tooldispatch.visionairy.biz/pro`
+
+No account needed. Everything runs locally. You lose the catalog network intelligence and the dashboard.
 
 ---
 
 ### Free — start here
 
-[Sign up with GitHub](https://tooltooldispatch.visionairy.biz/auth/github) — no API key, no card required. `install.sh` will ask for your token. Takes 30 seconds.
+[Sign up with GitHub](https://tooldispatch.visionairy.biz/auth/github) — no API key, no card required. `install.sh` will ask for your token. Takes 30 seconds.
 
 - **Dispatch:** 8 interceptions/day + full proactive recommendations on every task shift
 - **XF Audit:** Stage 1 always-on (bundled), Stages 2–4 tier-blocked with in-context upgrade prompt when Stage 2 events occurred
@@ -167,7 +170,7 @@ No account needed. Everything runs locally. You lose the catalog network intelli
 
 > **Founding offer:** First 300 subscribers lock in **$6/month for life**. After 300, standard rate applies.
 
-[Upgrade at tooltooldispatch.visionairy.biz/pro](https://tooltooldispatch.visionairy.biz/pro)
+[Upgrade at tooldispatch.visionairy.biz/pro](https://tooldispatch.visionairy.biz/pro)
 
 - **Dispatch:** unlimited interceptions, Sonnet ranking, pre-ranked catalog
 - **XF Audit:** full Stages 1–4 (Xpansion cascade analysis, concrete repair plan, graduated consent flow, repair log)

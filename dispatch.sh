@@ -3,7 +3,7 @@
 # Dispatch — Skill Router Hook (UserPromptSubmit)
 #
 # Hosted mode:  token in config.json → calls dispatch.visionairy.biz
-# BYOK mode:    ANTHROPIC_API_KEY set → calls Haiku directly (no token needed)
+# BYOK mode:    ANTHROPIC_API_KEY set → calls Claude (Haiku fallback) directly (no token needed)
 #
 # Stage 1: Topic shift detection (~100ms, every message)
 # Stage 2: Store task context for PreToolUse hook (only on confirmed shift)

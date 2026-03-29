@@ -180,11 +180,11 @@ Shows:
 | Network intelligence | — | ✓ | ✓ | — |
 | Dashboard | — | ✓ | ✓ | — |
 | Setup | GitHub login | GitHub login | GitHub login | Manual API key |
-| Cost | Free | $6/month (first 300) | $10/month | Your API cost |
+| Cost | Free | $6/month (first 300) | $10/month | Your key cost* |
 
 **Founding Dispatcher:** First 300 paying users lock in $6/month for life. Once the founding tier fills, new signups pay standard $10/month.
 
-*BYOK is for developers in air-gapped or restricted environments who cannot send any data to external services. BYOK ranking quality depends on your model — set `OPENROUTER_API_KEY` for free inference or `ANTHROPIC_API_KEY` for Haiku. Override with any model in `~/.claude/dispatch/config.json`. If that's not you, [start with Free](https://tooldispatch.visionairy.biz/auth/github) — it's easier, smarter, and actually free.
+*BYOK runs entirely on your machine against your own API key — no data goes through ToolDispatch servers. Set `OPENROUTER_API_KEY` to use any OpenRouter model (free models available, including Llama and Nemotron). Set `ANTHROPIC_API_KEY` for direct Claude access. Override the default model in `~/.claude/dispatch/config.json`. Free and Pro tiers run inference through ToolDispatch's servers — you provide nothing and pay nothing for the LLM calls.
 
 ---
 

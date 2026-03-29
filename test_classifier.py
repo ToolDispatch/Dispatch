@@ -126,13 +126,11 @@ class TestClassifyTopicShift(unittest.TestCase):
         )
         assert result["shift"] is False
 
-    @patch('classifier.anthropic.Anthropic')
-    def test_handles_malformed_response_gracefully(self, mock_client_cls):
-        mock_client = MagicMock()
-        mock_client_cls.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text="not json")]
-        )
+    @patch('classifier.get_client')
+    def test_handles_malformed_response_gracefully(self, mock_get_client):
+        mock_llm = MagicMock()
+        mock_get_client.return_value = mock_llm
+        mock_llm.complete.return_value = "not json"
         result = classify_topic_shift(
             messages=["something"],
             cwd="/home/visionairy",
@@ -164,20 +162,18 @@ class TestClassifyTopicShift(unittest.TestCase):
         assert result["mode"] == "fixing"
         assert result["task_type"] == "flutter-fixing"
 
-    @patch('classifier.anthropic.Anthropic')
-    def test_same_domain_same_mode_no_shift(self, mock_client_cls):
+    @patch('classifier.get_client')
+    def test_same_domain_same_mode_no_shift(self, mock_get_client):
         """No shift when domain and mode are both unchanged"""
-        mock_client = MagicMock()
-        mock_client_cls.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text=json.dumps({
-                "shift": False,
-                "domain": "flutter",
-                "mode": "building",
-                "task_type": "flutter-building",
-                "confidence": 0.15
-            }))]
-        )
+        mock_llm = MagicMock()
+        mock_get_client.return_value = mock_llm
+        mock_llm.complete.return_value = json.dumps({
+            "shift": False,
+            "domain": "flutter",
+            "mode": "building",
+            "task_type": "flutter-building",
+            "confidence": 0.15
+        })
         result = classify_topic_shift(
             messages=["what was that widget called again?"],
             cwd="/home/user/myapp",
@@ -210,12 +206,12 @@ class TestClassifyTopicShift(unittest.TestCase):
         )
         assert result["mode"] in valid_modes
 
-    @patch('classifier.anthropic.Anthropic')
-    def test_malformed_response_returns_all_5_fields(self, mock_client_cls):
+    @patch('classifier.get_client')
+    def test_malformed_response_returns_all_5_fields(self, mock_get_client):
         """Safe default on malformed response must include all 5 fields"""
-        mock_client = MagicMock()
-        mock_client_cls.return_value = mock_client
-        mock_client.messages.create.side_effect = Exception("API error")
+        mock_llm = MagicMock()
+        mock_get_client.return_value = mock_llm
+        mock_llm.complete.side_effect = Exception("API error")
         result = classify_topic_shift(
             messages=["write the auth middleware"],
             cwd="/home/user/project",

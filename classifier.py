@@ -77,16 +77,20 @@ def should_skip(message: str) -> bool:
     return word_count < 4
 
 
-def classify_topic_shift(messages: list, cwd: str, last_task_type: str = None, api_key: str = None) -> dict:
+def classify_topic_shift(messages: list, cwd: str, last_task_type: str = None, api_key: str = None, config: dict = None) -> dict:
     """
     Call LLM to classify whether a topic shift has occurred.
     Returns: {"shift": bool, "domain": str, "mode": str, "task_type": str, "confidence": float}
+
+    config: optional dict with openrouter_api_key / anthropic_api_key — overrides config.json.
+            Preferred over api_key. Pass from server to route inference through OpenRouter.
+    api_key: deprecated — Anthropic-only key, kept for backward compatibility.
     """
     try:
-        config = load_config()
-        # api_key param kept for backward compatibility — overrides config if provided
-        if api_key:
-            config.setdefault("anthropic_api_key", api_key)
+        config = dict(config) if config else load_config()
+        # api_key param kept for backward compatibility — only applies when config not passed
+        if api_key and not config.get("anthropic_api_key"):
+            config["anthropic_api_key"] = api_key
         llm = get_client(config)
         model = classify_model(config)
 

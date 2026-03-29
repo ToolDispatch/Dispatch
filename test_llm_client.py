@@ -34,9 +34,9 @@ class TestLoadConfig(unittest.TestCase):
 
 class TestModelSelection(unittest.TestCase):
     def test_classify_model_free_default(self):
-        from llm_client import classify_model
+        from llm_client import classify_model, FREE_CLASSIFIER_MODEL
         result = classify_model({})
-        assert result == "meta-llama/llama-3.1-8b-instruct:free"
+        assert result == FREE_CLASSIFIER_MODEL
 
     def test_classify_model_uses_config_override(self):
         from llm_client import classify_model
@@ -44,9 +44,9 @@ class TestModelSelection(unittest.TestCase):
         assert result == "anthropic/claude-haiku-4-5"
 
     def test_ranker_model_free_default(self):
-        from llm_client import ranker_model
+        from llm_client import ranker_model, FREE_RANKER_MODEL
         result = ranker_model({})
-        assert result == "meta-llama/llama-3.1-8b-instruct:free"
+        assert result == FREE_RANKER_MODEL
 
 
 class TestGetClient(unittest.TestCase):

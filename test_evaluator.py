@@ -376,12 +376,13 @@ class TestRankRecommendationsModel(unittest.TestCase):
 
     @patch('evaluator.search_registry', return_value=[])
     @patch('evaluator.rank_recommendations')
-    def test_build_defaults_to_haiku(self, mock_rank, _registry):
-        """build_recommendation_list defaults to Haiku when model not specified."""
+    def test_build_defaults_to_free_ranker_model(self, mock_rank, _registry):
+        """build_recommendation_list defaults to FREE_RANKER_MODEL when model not specified."""
+        from llm_client import FREE_RANKER_MODEL
         mock_rank.return_value = {"cc_score": 0, "all": []}
         build_recommendation_list("flutter")
         _, kwargs = mock_rank.call_args
-        assert kwargs.get("model") == "claude-haiku-4-5-20251001"
+        assert kwargs.get("model") == FREE_RANKER_MODEL
 
 
 class TestDescribeCcTool(unittest.TestCase):

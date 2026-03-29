@@ -3,7 +3,7 @@
 **Updated:** 2026-03-28
 **Version:** v1.0.0
 **Repo:** https://github.com/ToolDispatch/Dispatch
-**Platform:** https://tooltooldispatch.visionairy.biz
+**Platform:** https://tooldispatch.visionairy.biz
 
 **Core tagline:** Your Claude Code insurance policy — best tool for the job up front, code that connects before it breaks.
 **Dispatch half:** "best tool for the job up front" | **XF Audit half:** "code that connects before it breaks"
@@ -72,7 +72,7 @@ Install is one command:
 bash <(curl -fsSL https://raw.githubusercontent.com/ToolDispatch/Dispatch/main/install.sh)
 ```
 
-Requires Python 3.8+ and Node.js. Two modes: BYOK (your own Anthropic/OpenRouter key, full dual-layer locally) or Hosted (free token at tooldispatch.visionairy.biz, 8 detections/day free, Pro for unlimited + pre-ranked catalog). 313 tests across 8 modules if you want to read the code before installing.
+Requires Python 3.8+ and Node.js. Two modes: BYOK (your own Anthropic/OpenRouter key, full dual-layer locally) or Hosted (free token at tooldispatch.visionairy.biz, 8 detections/day free, Pro for unlimited + pre-ranked catalog). 372 tests across 8 modules if you want to read the code before installing.
 
 One more thing worth saying: if you're newer to Claude Code and feel like it's not quite clicking — like the results aren't as good as you hoped — this is often why. Native CC with no tool awareness is Claude reaching for whatever it knows. CC with Dispatch is Claude reaching for the best tool available for what you're actually doing. The difference is significant. You need it today. You'll need it more tomorrow.
 
@@ -168,7 +168,7 @@ Haiku returns markdown-wrapped JSON even when you ask it not to. Always strip th
 
 Exit code 2 from a PreToolUse hook blocks the tool call. Exit 0 passes through. Stdout goes into Claude's context. Stderr is suppressed. The whole hook must complete within 10 seconds or CC bypasses it regardless.
 
-313 tests across 8 modules. The hardest thing to test is transcript parsing — the edge cases keep multiplying.
+372 tests across 8 modules. The hardest thing to test is transcript parsing — the edge cases keep multiplying.
 
 Repo: https://github.com/ToolDispatch/Dispatch
 
@@ -327,7 +327,7 @@ https://github.com/ToolDispatch/Dispatch
 
 **Tweet 11 — CTA:**
 ```
-313 tests. MIT licensed. Read every line before installing.
+372 tests. MIT licensed. Read every line before installing.
 
 The plugin ecosystem is deeper than most Claude Code users know.
 
@@ -379,7 +379,7 @@ Free hosted tier (8/day) or BYOK. Pro = pre-ranked catalog (<200ms), Sonnet rank
 
 https://github.com/ToolDispatch/Dispatch
 
-313 tests if you want to audit before installing. Happy to discuss the hook architecture.
+372 tests if you want to audit before installing. Happy to discuss the hook architecture.
 ```
 
 ---
@@ -596,7 +596,7 @@ Repo: https://github.com/ToolDispatch/Dispatch
 >
 > The catalog is rebuilt daily from live sources scored by real behavioral signals. Gets sharper with use.
 >
-> Source open, 313 tests: https://github.com/ToolDispatch/Dispatch
+> Source open, 372 tests: https://github.com/ToolDispatch/Dispatch
 >
 > Technical feedback welcome — especially on detection granularity.
 
@@ -644,7 +644,7 @@ Dispatch is a two-hook CC runtime that addresses the tool discovery gap at both 
 
 - Hooks section is the right home — both hooks are the core of the project
 - Addresses a structural gap: the CC plugin ecosystem is deep, Claude doesn't use it at runtime
-- Open source (MIT), 313 tests, Python 3.8+ and Bash
+- Open source (MIT), 372 tests, Python 3.8+ and Bash
 - Free hosted tier (8 detections/day) or BYOK (unlimited)
 
 ## Links
@@ -665,7 +665,7 @@ I catalogued 10,978 Claude Code tools and built a dual-layer runtime. Here's wha
 
 **Subtitle:**
 ```
-Two hooks, 313 tests, and a map of exactly where Claude's tool selection underperforms
+Two hooks, 372 tests, and a map of exactly where Claude's tool selection underperforms
 ```
 
 ---
@@ -790,7 +790,7 @@ Two hooks, 313 tests, and a map of exactly where Claude's tool selection underpe
 - One-command install, requirements, what to do after
 - Where to look in the source first: `dispatch.sh` for the full three-stage Hook 1 logic, `dispatch-preuse.sh` for the intercept logic, `categories.json` for the taxonomy, `catalog_cron.py` for how the catalog is built
 - Contributing: category mapper and scoring logic are the best entry points
-- What the 313 tests cover and where the gaps are
+- What the 372 tests cover and where the gaps are
 
 ---
 

@@ -10,8 +10,8 @@ import os
 
 CONFIG_FILE = os.path.expanduser("~/.claude/dispatch/config.json")
 
-FREE_CLASSIFIER_MODEL = "meta-llama/llama-3.1-8b-instruct:free"
-FREE_RANKER_MODEL = "meta-llama/llama-3.1-8b-instruct:free"
+FREE_CLASSIFIER_MODEL = "mistralai/mistral-nemo"
+FREE_RANKER_MODEL = "nvidia/nemotron-3-super-120b-a12b:free"
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 
