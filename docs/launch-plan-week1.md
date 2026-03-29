@@ -13,7 +13,7 @@ Because the product has more depth than almost anyone selling it gives it credit
 ### THE TWO PROBLEMS IT SOLVES
 
 **Problem 1: The Discovery Gap**
-The CC ecosystem has 300+ plugins, skills, and MCPs across 16 domains — and it grows every week. Developers discover maybe 10% of it by browsing, asking around, or stumbling onto something. When you switch from React to n8n, CC reaches for the tool it used yesterday, not the best tool for today's task. Nobody told it anything changed. Nobody told YOU what exists.
+The CC ecosystem has 51,000+ agent skills on claude-plugins.dev alone, 20,000+ MCP servers on glama.ai, and more on Smithery — across 16 domains — and it grows every week. Developers discover maybe 10% of it by browsing, asking around, or stumbling onto something. When you switch from React to n8n, CC reaches for the tool it used yesterday, not the best tool for today's task. Nobody told it anything changed. Nobody told YOU what exists.
 
 **Problem 2: The Code Contract Gap**
 CC generates architecturally sound code that fails at runtime. Broken imports, wrong function signatures, missing env vars, stubs left in production. Pyright doesn't catch these because they're not type errors — they're the specific class of failure AI code introduces: hallucinated APIs, stale signatures from training data, assumed env vars. You run the code. It breaks. You ask CC to fix it. It fixes a symptom. Something else breaks. Repeat for 3 hours.
@@ -143,7 +143,7 @@ Three distinct angles. Each one is complete. Don't mix them in a single post.
 
 **For: r/ClaudeAI, experienced devs, X/Twitter**
 
-> Title: "The Claude Code ecosystem has 300+ tools. CC only knows about the ones it's seen before."
+> Title: "The Claude Code ecosystem has 70,000+ tools across skills, MCPs, and plugins. CC only knows about the ones it's seen before."
 
 > Body:
 > When you're deep in a Flutter session and pivot to setting up Stripe, Claude Code doesn't know you switched. It reaches for the Flutter tools it's been using. Not because it's dumb — because nothing told it the task changed.
@@ -215,7 +215,7 @@ Three distinct angles. Each one is complete. Don't mix them in a single post.
 
 **Dispatch hooks:**
 - "Claude Code doesn't know you switched tasks. I built something that does."
-- "There are 300+ CC tools in the marketplace. You're probably using 20. Here's what you're missing for your current task."
+- "There are 70,000+ tools in the CC ecosystem. You're probably using 20. Here's what you're missing for your current task."
 - "I watched CC reach for the wrong tool 8 times in one session. So I built an interceptor."
 - "The CC plugin ecosystem added 40 tools this quarter. Dispatch told me which 3 mattered for what I'm building."
 

@@ -18,7 +18,7 @@
 
 ToolDispatch puts the best tool in Claude's hands at the right moment. XF Audit ensures the code it produces actually connects. One platform. Both sides of the problem. And it leaves a record of everything it did.
 
-**Dispatch** covers the first half: 10,000+ tools exist for Claude Code across plugins, skills, and MCP servers. New ones ship every week. Claude picks from defaults. The best tool for what you're actually building right now — you've probably never heard of it. Dispatch fixes this by proactively surfacing the right tools when your task shifts, and intercepting when Claude reaches for a weaker one. All decisions are logged with `[PROVENANCE]` markers for transparency.
+**Dispatch** covers the first half: claude-plugins.dev alone lists 51,000+ agent skills. Glama.ai has 20,000+ MCP servers. Smithery has thousands more. The Claude Code tool ecosystem is enormous — and growing every week. Claude picks from defaults. The best tool for what you're actually building right now — you've probably never heard of it. Dispatch fixes this by proactively surfacing the right tools when your task shifts, and intercepting when Claude reaches for a weaker one. All decisions are logged with `[PROVENANCE]` markers for transparency.
 
 **XF Audit** covers the second half: Claude Code produces architecturally sound code that often doesn't connect. It renames a function and misses three callers. It calls a function with the wrong number of arguments. These failures are silent until runtime — and by then the session context is gone. XF Audit closes that loop at the edit boundary, where the cost of fixing is near-zero and the context is still live.
 
