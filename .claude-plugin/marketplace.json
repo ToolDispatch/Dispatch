@@ -1,0 +1,67 @@
+{
+  "name": "tooldispatch",
+  "display_name": "ToolDispatch",
+  "description": "Your Claude Code insurance policy. Dispatch recommends the best tool for the job before work starts and intercepts when Claude reaches for a weaker alternative. XF Audit catches broken module contracts on every Edit/Write — AST scan, cascade analysis, concrete repair plan, graduated consent. Two modules. Both sides of the problem.",
+  "version": "1.0.0",
+  "author": {
+    "name": "ToolDispatch",
+    "url": "https://dispatch.visionairy.biz",
+    "email": "russ@visionairy.com"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/ToolDispatch/Dispatch",
+  "homepage": "https://dispatch.visionairy.biz",
+  "icon": "../Dispatch Icon.png",
+  "keywords": [
+    "hooks",
+    "plugin-discovery",
+    "mcp",
+    "tool-recommendation",
+    "xf-audit",
+    "contract-checking",
+    "productivity",
+    "developer-tools",
+    "task-detection"
+  ],
+  "install": {
+    "type": "script",
+    "command": "bash install.sh"
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "type": "command",
+        "command": "bash ~/.claude/hooks/dispatch.sh",
+        "timeout_ms": 10000
+      }
+    ],
+    "PreToolUse": [
+      {
+        "type": "command",
+        "command": "bash ~/.claude/hooks/dispatch-preuse.sh",
+        "timeout_ms": 10000
+      },
+      {
+        "type": "command",
+        "command": "bash ~/.claude/hooks/pre-edit-audit.sh",
+        "timeout_ms": 10000
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": "bash ~/.claude/hooks/dispatch-stop.sh",
+        "timeout_ms": 5000
+      }
+    ]
+  },
+  "requirements": {
+    "python": ">=3.8"
+  },
+  "screenshots": [],
+  "categories": [
+    "productivity",
+    "developer-tools",
+    "ai-tools"
+  ]
+}
