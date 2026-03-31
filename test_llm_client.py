@@ -101,19 +101,18 @@ class TestComplete(unittest.TestCase):
             result = client.complete(system="sys", user="usr", model="claude-haiku-4-5-20251001")
         assert result == ""
 
-    def test_complete_openrouter_provider_calls_openai_sdk(self):
+    def test_complete_openrouter_provider_calls_requests(self):
         from llm_client import LLMClient
         client = LLMClient(provider="openrouter", api_key="sk-or-test")
-        mock_choice = MagicMock()
-        mock_choice.message.content = '{"cc_score": 80, "all": []}'
-        mock_response = MagicMock()
-        mock_response.choices = [mock_choice]
-        with patch("openai.OpenAI") as MockOpenAI:
-            MockOpenAI.return_value.chat.completions.create.return_value = mock_response
-            client._openai_client = MockOpenAI.return_value
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "choices": [{"message": {"content": '{"cc_score": 80, "all": []}'}}]
+        }
+        with patch("llm_client._requests.post", return_value=mock_resp) as mock_post:
             result = client.complete(system="sys", user="usr", model="meta-llama/llama-3.1-8b-instruct:free")
         assert result == '{"cc_score": 80, "all": []}'
-        MockOpenAI.return_value.chat.completions.create.assert_called_once()
+        mock_post.assert_called_once()
 
     def test_complete_anthropic_provider_calls_anthropic_sdk(self):
         from llm_client import LLMClient

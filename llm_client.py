@@ -1,12 +1,13 @@
 """LLM-agnostic adapter for Dispatch.
 
-OpenRouter-first (uses openai SDK with custom base_url).
+OpenRouter-first (direct requests to openrouter.ai — no third-party SDK).
 Falls back to Anthropic if OpenRouter is unavailable or unconfigured.
 Never raises — returns empty string on any failure.
 """
 
 import json
 import os
+import requests as _requests
 
 CONFIG_FILE = os.path.expanduser("~/.claude/dispatch/config.json")
 
@@ -81,19 +82,10 @@ class LLMClient:
         self.base_url = base_url or OPENROUTER_BASE_URL
         self.anthropic_fallback_key = anthropic_fallback_key
 
-        self._openai_client = None
         self._anthropic_client = None
         self._anthropic_fallback_client = None
 
         if provider == "openrouter" and api_key:
-            try:
-                import openai
-                self._openai_client = openai.OpenAI(
-                    base_url=self.base_url,
-                    api_key=api_key,
-                )
-            except Exception:
-                pass
             if anthropic_fallback_key:
                 try:
                     import anthropic
@@ -143,18 +135,25 @@ class LLMClient:
 
     def _complete_openrouter(self, system: str, user: str, model: str, max_tokens: int) -> str:
         try:
-            client = self._openai_client
-            if client is None:
-                return ""
-            response = client.chat.completions.create(
-                model=model,
-                max_tokens=max_tokens,
-                messages=[
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
+            resp = _requests.post(
+                f"{self.base_url}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "max_tokens": max_tokens,
+                    "messages": [
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": user},
+                    ],
+                },
+                timeout=15,
             )
-            text = response.choices[0].message.content or ""
+            if resp.status_code != 200:
+                return ""
+            text = resp.json()["choices"][0]["message"]["content"] or ""
             return _strip_fences(text)
         except Exception:
             return ""
