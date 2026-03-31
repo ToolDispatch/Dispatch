@@ -332,6 +332,10 @@ class TestEnvVarContract:
             f"Hooks run from different cwd — relative paths would break."
         )
 
+    @pytest.mark.skipif(
+        not os.path.isdir(os.path.expanduser("~/.claude/dispatch")),
+        reason="~/.claude/dispatch doesn't exist — run install.sh first"
+    )
     def test_state_file_directory_exists_or_creatable(self):
         """The directory containing STATE_FILE must exist after install."""
         from interceptor import STATE_FILE

@@ -390,11 +390,6 @@ print(json.dumps({
         --max-time 2 >/dev/null 2>&1 &
 fi
 
-DC_BLUE=$'\033[94m'
-DC_GREEN=$'\033[92m'
-DC_GRAY=$'\033[90m'
-DC_RESET=$'\033[0m'
-
 if [ "$SHOULD_BLOCK" != "yes" ]; then
     exit 0
 fi
