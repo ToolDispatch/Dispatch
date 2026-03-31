@@ -582,7 +582,7 @@ except Exception:
 " "$SKILL_ROUTER_DIR" "$TASK_TYPE" "$CATEGORY" "$CONTEXT_SNIPPET" "$PREFERRED_TOOL_TYPE" 2>/dev/null || echo "")
 
     if [ -n "$STAGE3_OUTPUT" ]; then
-        printf '%s\n' "$STAGE3_OUTPUT"
+        printf '%s\n' "$STAGE3_OUTPUT" > /dev/tty 2>/dev/null || printf '%s\n' "$STAGE3_OUTPUT"
         python3 -c "
 import sys
 sys.path.insert(0, sys.argv[1])
