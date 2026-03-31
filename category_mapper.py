@@ -98,7 +98,6 @@ def load_categories() -> list:
 # "general-*" and "dispatch-*" are meta-labels Haiku uses when the task is about
 # the tooling/workflow itself rather than a specific technology domain.
 _GENERIC_PREFIX_FALLBACK = {
-    "dispatch": "backend",
     "general":  "backend",
     "tooling":  "backend",
     "coding":   "backend",
