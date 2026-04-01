@@ -440,13 +440,30 @@ caveat      = recs.get("caveat", "")
 
 cc_type_label = {"mcp": "MCP server", "agent": "Agent", "skill": "Skill"}.get(cc_tool_type, "Skill")
 
-def display_name(name):
+OSC = chr(27) + "]8;;"
+ST  = chr(27) + chr(92)
+
+def link(display, href):
+    if href:
+        return f"{OSC}{href}{ST}{BLUE}{display}{RESET}{OSC}{ST}"
+    return f"{BLUE}{display}{RESET}"
+
+def display_name_linked(name, install_url):
     if name.startswith("mcp:"):
-        return name[4:]
+        dn = name[4:]
+        return link(dn, install_url)
+    if name.startswith("plugin:anthropic:"):
+        dn = name[len("plugin:anthropic:"):]
+        return link(dn, install_url)
     if name.startswith("plugin:"):
         parts = name.split(":", 2)
-        return parts[2] if len(parts) > 2 else name
-    return name
+        dn = parts[2] if len(parts) > 2 else name
+        return link(dn, install_url)
+    if "@" in name and "/" in name:
+        _, skill_name = name.rsplit("@", 1)
+        url = install_url or f"https://github.com/{name.split('@')[0]}"
+        return link(skill_name, url)
+    return link(name, install_url)
 
 def render_tool(tool, idx):
     name        = tool.get("name", "")
@@ -462,8 +479,8 @@ def render_tool(tool, idx):
     desc        = (tool.get("description") or "").strip()
 
     out = []
-    dn = display_name(name)
-    out.append(f"  {idx}. {BLUE}{dn}{RESET}")
+    linked = display_name_linked(name, install_url)
+    out.append(f"  {idx}. {linked}")
     score_line = f"     {GRAY}Relevance {rel} · Signal {sig} · Velocity {vel}"
     score_line += f"  installs:{installs:,} stars:{stars:,} forks:{forks:,}{RESET}"
     out.append(score_line)
@@ -473,8 +490,6 @@ def render_tool(tool, idx):
         out.append(f"     {GRAY}{desc[:120]}{RESET}")
     if install_cmd:
         out.append(f"     {GRAY}Install: {install_cmd} && claude{RESET}")
-    elif install_url:
-        out.append(f"     {GRAY}More info: {install_url}{RESET}")
     return out
 
 lines = [
