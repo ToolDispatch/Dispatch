@@ -328,6 +328,7 @@ def _search_glama(term: str, limit: int = 10) -> list:
                     results.append({
                         "id": slug,
                         "description": (s.get("description") or "")[:200],
+                        "install_url": f"https://glama.ai/mcp/servers/{slug}",
                     })
             page_info = data.get("pageInfo", {})
             if not page_info.get("hasNextPage"):
@@ -372,6 +373,7 @@ def _search_official_plugins(category_id: str) -> list:
                 results.append({
                     "id": plugin_id,
                     "description": (p.get("description") or "")[:200],
+                    "install_url": p.get("homepage") or "",
                 })
     return results
 

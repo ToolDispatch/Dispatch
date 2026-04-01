@@ -510,17 +510,17 @@ try:
         tid = item.get('id', '')
         desc = (item.get('description', '') or '').strip()
         reason = desc[:65].rstrip('.').rstrip() if desc else 'Relevant to this task'
+        iurl = item.get('install_url', '') or ''
 
         if tid.startswith('plugin:'):
             if len(plugins) < 3:
-                plugins.append({'name': tid, 'reason': reason, 'install_cmd': ''})
+                plugins.append({'name': tid, 'reason': reason, 'install_url': iurl})
         elif tid.startswith('mcp:'):
             if len(mcps) < 3:
-                mcps.append({'name': tid, 'reason': reason, 'install_cmd': ''})
+                mcps.append({'name': tid, 'reason': reason, 'install_url': iurl})
         else:
             if len(skills) < 3:
-                install_cmd = f'npx skills add {tid} -y' if tid else ''
-                skills.append({'name': tid, 'reason': reason, 'install_cmd': install_cmd})
+                skills.append({'name': tid, 'reason': reason, 'install_url': iurl})
 
     # Only output if at least one section has results
     if not plugins and not skills and not mcps:
@@ -529,31 +529,34 @@ try:
 
     def fmt_tool(t, GRAY='', RESET='', BLUE=''):
         name = t.get('name', '')
+        url  = t.get('install_url', '') or ''
         reason = (t.get('reason', '') or '').rstrip('.')
-        # Truncate reason to fit on one line
         if len(reason) > 65:
             reason = reason[:62] + '...'
-        # Build display with OSC 8 hyperlink for skills (owner/repo@skill-name → GitHub)
+        OSC = chr(27) + ']8;;'
+        ST  = chr(27) + chr(92)
+        def link(display, href):
+            if href:
+                return f'{OSC}{href}{ST}{BLUE}{display}{RESET}{OSC}{ST}'
+            return f'{BLUE}{display}{RESET}'
         if name.startswith('plugin:anthropic:'):
             display = name[len('plugin:anthropic:'):]
-            linked = f'{BLUE}{display}{RESET}'
+            linked = link(display, url)
         elif name.startswith('plugin:cc-marketplace:'):
             display = name[len('plugin:cc-marketplace:'):]
-            linked = f'{BLUE}{display}{RESET}'
+            linked = link(display, url)
         elif name.startswith('plugin:'):
             display = name[7:]
-            linked = f'{BLUE}{display}{RESET}'
+            linked = link(display, url)
         elif name.startswith('mcp:'):
             display = name[4:]
-            linked = f'{BLUE}{display}{RESET}'
+            linked = link(display, url)
         elif '@' in name:
             owner_repo, skill_name = name.rsplit('@', 1)
-            gh_url = f'https://github.com/{owner_repo}'
-            OSC = chr(27) + ']8;;'
-            ST  = chr(27) + chr(92)
-            linked = f'{OSC}{gh_url}{ST}{BLUE}{skill_name}{RESET}{OSC}{ST}'
+            gh_url = url or f'https://github.com/{owner_repo}'
+            linked = link(skill_name, gh_url)
         else:
-            linked = f'{BLUE}{name}{RESET}'
+            linked = link(name, url)
         return f'  \u2022 {linked} \u2014 {reason}'
 
     sections = []
