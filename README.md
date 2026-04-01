@@ -157,7 +157,7 @@ Start a **new** Claude Code session after install — hooks load at session star
 
 ## Plans
 
-### BYOK / Open Source — for developers who need full local control
+### BYOK / Open Source — unlimited routing, your keys
 
 ```bash
 git clone https://github.com/ToolDispatch/Dispatch.git
@@ -166,13 +166,12 @@ export OPENROUTER_API_KEY=sk-or-...   # recommended — free models available
 # or: export ANTHROPIC_API_KEY=sk-ant-...  # any Claude model
 ```
 
-Bring your own key — OpenRouter or Anthropic. Everything runs on your machine, against your key. No data leaves your network. Set `OPENROUTER_API_KEY` for free inference (Llama, Nemotron, and more) or `ANTHROPIC_API_KEY` for direct Claude access. Override the model in `~/.claude/dispatch/config.json`.
+Bring your own key — OpenRouter or Anthropic. Everything runs on your machine, against your key. No data leaves your network. No account needed.
 
-- **Dispatch:** fully functional, unlimited interceptions
-- **XF Audit:** Stage 1 bundled (pure AST, zero API cost) — catches broken imports, arity mismatches, syntax errors on every Edit/Write
-- **Stages 2–4:** upgrade prompt fires in session digest when Stage 2 would have been useful — one line, never mid-conversation, never blocking: `◈ XF Audit would have mapped that cascade. dispatch.visionairy.biz/pro`
+- **Dispatch:** fully functional, unlimited interceptions, proactive recommendations on every task shift
+- **XFBA + XSIA:** not included — one daily notice in your terminal lets you know what you're missing
 
-No account needed. Everything runs locally. You lose the catalog network intelligence and the dashboard.
+You lose the catalog network intelligence, the dashboard, and the Xpansion suite. You keep full Dispatch routing, free forever.
 
 ---
 
@@ -180,8 +179,10 @@ No account needed. Everything runs locally. You lose the catalog network intelli
 
 [Sign up with GitHub](https://dispatch.visionairy.biz/auth/github) — no API key, no card required. `install.sh` will ask for your token. Takes 30 seconds.
 
-- **Dispatch:** 8 interceptions/day + full proactive recommendations on every task shift
-- **XF Audit:** Stage 1 always-on (bundled), Stages 2–4 tier-blocked with in-context upgrade prompt when Stage 2 events occurred
+- **Dispatch:** 5 turns/day + full proactive recommendations on every task shift
+- **XFBA (XF Boundary Auditor):** included — catches broken imports, arity mismatches, and missing env vars on every Edit/Write within your 5 turns
+- **XSIA (XF System Impact Analyzer):** included — flags edits with systemic impact (callers, data flow, side effects) within your 5 turns
+- Everything shuts off once your 5 daily turns are used. Resets at midnight.
 
 **What leaves your machine:** your last ~3 messages and working directory path, sent to classify the task. Not stored — we keep your GitHub username, usage count, and task type labels (e.g., `flutter-fixing`). No conversation content.
 
@@ -193,8 +194,9 @@ No account needed. Everything runs locally. You lose the catalog network intelli
 
 [Upgrade at dispatch.visionairy.biz/pro](https://dispatch.visionairy.biz/pro)
 
-- **Dispatch:** unlimited interceptions, Sonnet ranking, pre-ranked catalog
-- **XF Audit:** full Stages 1–4 (Xpansion cascade analysis, concrete repair plan, graduated consent flow, repair log)
+- **Dispatch:** unlimited turns, Sonnet ranking, pre-ranked catalog
+- **XFBA:** full Stages 1–4 (AST scan → Xpansion cascade → repair plan → graduated consent), unlimited
+- **XSIA:** full 6-dimension analysis on every edit, unlimited
 - **Dashboard:** interception history, contract repair history, provenance log
 
 The catalog is the compounding advantage. The hosted version sees what thousands of developers actually installed after a Dispatch suggestion, which tools they bypassed, and which ones stuck. That signal builds over time and no local setup can replicate it.
@@ -202,11 +204,11 @@ The catalog is the compounding advantage. The hosted version sees what thousands
 | | BYOK | Free | Pro |
 |---|---|---|---|
 | **Dispatch — proactive recs** | ✓ | ✓ | ✓ |
-| **Dispatch — interceptions** | Unlimited | 8/day | Unlimited |
+| **Dispatch — interceptions** | Unlimited | 5/day | Unlimited |
 | **Dispatch — ranking quality** | Configurable | Good | Best (Sonnet) |
 | **Dispatch — catalog** | Live search | Live search | Pre-ranked, 6 sources |
-| **XF Audit — Stage 1** | ✓ | ✓ | ✓ |
-| **XF Audit — Stages 2–4** | Upgrade prompt | Upgrade prompt | ✓ Full |
+| **XFBA (Boundary Auditor)** | — | ✓ (within 5 turns) | ✓ Unlimited |
+| **XSIA (Impact Analyzer)** | — | ✓ (within 5 turns) | ✓ Unlimited |
 | **Dashboard** | — | — | ✓ |
 | **Network intelligence** | — | — | ✓ |
 | **Cost** | API costs | Free | $10/month |
