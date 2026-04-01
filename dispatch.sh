@@ -549,7 +549,9 @@ try:
         elif '@' in name:
             owner_repo, skill_name = name.rsplit('@', 1)
             gh_url = f'https://github.com/{owner_repo}'
-            linked = f'\033]8;;{gh_url}\033\\{BLUE}{skill_name}{RESET}\033]8;;\033\\'
+            OSC = chr(27) + ']8;;'
+            ST  = chr(27) + chr(92)
+            linked = f'{OSC}{gh_url}{ST}{BLUE}{skill_name}{RESET}{OSC}{ST}'
         else:
             linked = f'{BLUE}{name}{RESET}'
         return f'  \u2022 {linked} \u2014 {reason}'
