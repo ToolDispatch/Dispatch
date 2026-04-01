@@ -35,6 +35,30 @@ PLUGIN_CAT_MAP = {
     "testing": "testing",
 }
 
+# Terms that flag an MCP as belonging to a non-developer vertical.
+# Glama search results sometimes surface these due to keyword overlap (e.g.,
+# "playwright" matched financial tool descriptions). Filter them before surfacing.
+_NON_DEV_DOMAIN_TERMS = [
+    "brokerage", "fidelity investment", "schwab", "e-trade", "etrade",
+    "trading account", "stock portfolio", "401k", "ira account",
+    "electronic health record", "ehr ", "emr ", "patient record",
+    "clinical trial", "hipaa", "insurance claim",
+    "legal document", "case management", "law firm",
+    "payroll processing", "accounts payable", "accounts receivable",
+]
+
+
+def _is_domain_irrelevant(mcp_id: str, description: str) -> bool:
+    """Return True if the MCP clearly belongs to a non-dev vertical (finance, healthcare, legal, etc.).
+
+    Prevents glama keyword matches from surfacing e.g. a Fidelity brokerage MCP when
+    searching for 'playwright' (testing). Case-insensitive substring match.
+    """
+    text = f"{mcp_id} {description}".lower()
+    return any(term in text for term in _NON_DEV_DOMAIN_TERMS)
+
+
+
 
 def _load_cache() -> dict:
     try:
@@ -459,7 +483,7 @@ def search_by_category(category_id: str, limit: int = 10) -> list:
             for mcp in _search_glama(glama_term, limit=5):
                 # Prefix with "mcp:" so type detection and display work correctly
                 mcp_id = mcp["id"] if mcp["id"].startswith("mcp:") else f"mcp:{mcp['id']}"
-                if mcp_id not in seen_ids:
+                if mcp_id not in seen_ids and not _is_domain_irrelevant(mcp_id, mcp.get("description", "")):
                     seen_ids.add(mcp_id)
                     mcps_to_add.append({"id": mcp_id, "description": mcp.get("description", "")})
     except Exception:
