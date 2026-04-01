@@ -243,14 +243,15 @@ except:
 $SEP
  ${DICON} ${DC_BLUE}Dispatch${DC_RESET}  →  ${DC_YELLOW}Task shift detected${DC_RESET}
 $SEP
- ${DC_YELLOW}You've used your 8 free detections today.${DC_RESET}
- ${DC_GRAY}Upgrade for unlimited + Sonnet ranking — \$10/month → $UPGRADE_URL${DC_RESET}
+ ${DC_YELLOW}You've used your 5 free turns today.${DC_RESET}
+ ${DC_GRAY}Upgrade for unlimited + Sonnet ranking + XFBA + XSIA — \$10/month → $UPGRADE_URL${DC_RESET}
 $SEP"
         # Set cooldown: suppress for next 5 triggers
+        # Also write quota_exhausted_date to config.json so XFBA/XSIA shut off too
         python3 -c "
 import json, sys, os, tempfile
-from datetime import datetime
-state_file, task_type = sys.argv[1], sys.argv[2]
+from datetime import datetime, date
+state_file, task_type, config_file = sys.argv[1], sys.argv[2], sys.argv[3]
 try:
     d = json.load(open(state_file))
 except Exception:
@@ -266,7 +267,16 @@ try:
 except Exception:
     try: os.unlink(tmp)
     except: pass
-" "$STATE_FILE" "${LAST_TASK_TYPE:-}" 2>/dev/null || true
+# Write quota_exhausted_date to config.json (XFBA/XSIA check this)
+try:
+    cfg = json.loads(open(config_file).read()) if os.path.isfile(config_file) else {}
+    cfg['quota_exhausted_date'] = date.today().isoformat()
+    tmp2 = config_file + '.tmp'
+    with open(tmp2, 'w') as f: json.dump(cfg, f, indent=2)
+    os.replace(tmp2, config_file)
+except Exception:
+    pass
+" "$STATE_FILE" "${LAST_TASK_TYPE:-}" "$CONFIG_FILE" 2>/dev/null || true
         exit 0
     fi
 
