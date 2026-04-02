@@ -58,6 +58,68 @@ def _is_domain_irrelevant(mcp_id: str, description: str) -> bool:
     return any(term in text for term in _NON_DEV_DOMAIN_TERMS)
 
 
+def _filter_by_relevance(
+    candidates: list,
+    context_snippet: str,
+    stack_profile: dict = None,
+    min_hits: int = 1,
+) -> list:
+    """Pre-filter candidates by keyword overlap with the triggering context.
+
+    Two-stage block:
+      1. Hard block — _is_domain_irrelevant() removes finance/healthcare/legal MCPs
+         regardless of context.
+      2. Keyword block — candidates with zero lexical overlap with the context +
+         stack keywords are removed before the LLM scorer sees them.
+
+    Substring matching is used (not exact token) so "test" hits "testing",
+    "python" hits "Python", etc.
+
+    Returns the filtered list. Passes everything through when context_snippet
+    is empty (safe default: don't over-filter blind).
+    """
+    STOP_WORDS = {
+        'the', 'and', 'for', 'that', 'with', 'this', 'are', 'but', 'not',
+        'you', 'all', 'can', 'was', 'one', 'our', 'out', 'get', 'has',
+        'its', 'may', 'new', 'now', 'own', 'see', 'set', 'use', 'way',
+        'who', 'any', 'from', 'had', 'into', 'more', 'will', 'been', 'each',
+        'them', 'also', 'back', 'does', 'just', 'make', 'most', 'over',
+        'such', 'than', 'then', 'they', 'time', 'what', 'when', 'your',
+        'about', 'after', 'other', 'their', 'there', 'these', 'where',
+        'which', 'would', 'have', 'been', 'here', 'some', 'only', 'very',
+    }
+
+    # Build keyword set from context + stack
+    context_text = (context_snippet or "").lower()
+    raw_words = set(re.findall(r'\b[a-z][a-z0-9_-]{2,}\b', context_text))
+    context_words = raw_words - STOP_WORDS
+
+    if stack_profile:
+        for key in ('languages', 'frameworks', 'tools'):
+            for term in stack_profile.get(key, []):
+                context_words.update(w for w in term.lower().split() if w not in STOP_WORDS)
+
+    filtered = []
+    for c in candidates:
+        cid = (c.get('id') or '').lower()
+        desc = (c.get('description') or '').lower()
+        candidate_text = f"{cid} {desc}"
+
+        # Stage 1: hard domain block
+        if _is_domain_irrelevant(cid, desc):
+            continue
+
+        # Stage 2: keyword relevance block
+        # Skip when no context available — safe default, let everything through
+        if not context_words:
+            filtered.append(c)
+            continue
+
+        hits = sum(1 for w in context_words if w in candidate_text)
+        if hits >= min_hits:
+            filtered.append(c)
+
+    return filtered
 
 
 def _load_cache() -> dict:
@@ -800,6 +862,15 @@ def recommend_tools(
                 c for c in candidates
                 if normalize_tool_name_for_matching(c.get("id", "")) not in installed_mcps
             ]
+
+        # 2b. Pre-filter by relevance to triggering context (fast, no LLM)
+        candidates = _filter_by_relevance(
+            candidates,
+            context_snippet=context_snippet,
+            stack_profile=stack_profile,
+        )
+        if not candidates:
+            return {"all": [], "by_type": {}, "top_pick": None}
 
         # 3. Build stack context hint
         stack_hint = ""

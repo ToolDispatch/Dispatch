@@ -494,12 +494,13 @@ fi
 # Outputs grouped recommendations to stdout — CC injects before response.
 if [ "$CATEGORY" != "unknown" ] && [ "$ALREADY_FIRED" != "yes" ]; then
     STAGE3_OUTPUT=$(python3 -c "
-import sys, json, signal
+import sys, json, signal, os
 sys.path.insert(0, sys.argv[1])
 
-task_type       = sys.argv[2]
-category_id     = sys.argv[3]
-context_snippet = sys.argv[4]
+task_type        = sys.argv[2]
+category_id      = sys.argv[3]
+context_snippet  = sys.argv[4]
+preferred_type   = sys.argv[5] if len(sys.argv) > 5 else 'skill'
 
 def _timeout_handler(signum, frame):
     raise TimeoutError('stage3 timeout')
@@ -508,94 +509,99 @@ signal.signal(signal.SIGALRM, _timeout_handler)
 signal.alarm(8)
 
 try:
-    from evaluator import search_by_category
+    from evaluator import recommend_tools
 
-    raw = search_by_category(category_id, limit=15)
+    # Load stack profile so recommend_tools can filter installed MCPs + build stack hint
+    stack_profile = {}
+    try:
+        sp_path = os.path.join(sys.argv[1], 'stack_profile.json')
+        with open(sp_path) as _f:
+            stack_profile = json.load(_f)
+    except Exception:
+        pass
+
+    cwd_basename = os.path.basename((stack_profile.get('cwd') or '').rstrip('/')) or ''
+
+    result = recommend_tools(
+        task_type=task_type,
+        context_snippet=context_snippet,
+        category_id=category_id,
+        stack_profile=stack_profile,
+        preferred_type=preferred_type,
+        cwd_basename=cwd_basename,
+    )
 
     signal.alarm(0)
 
-    plugins, skills, mcps = [], [], []
-
-    for item in raw:
-        tid = item.get('id', '')
-        desc = (item.get('description', '') or '').strip()
-        reason = desc[:65].rstrip('.').rstrip() if desc else 'Relevant to this task'
-        iurl = item.get('install_url', '') or ''
-
-        if tid.startswith('plugin:'):
-            if len(plugins) < 3:
-                plugins.append({'name': tid, 'reason': reason, 'install_url': iurl})
-        elif tid.startswith('mcp:'):
-            if len(mcps) < 3:
-                mcps.append({'name': tid, 'reason': reason, 'install_url': iurl})
-        else:
-            if len(skills) < 3:
-                skills.append({'name': tid, 'reason': reason, 'install_url': iurl})
-
-    # Only output if at least one section has results
-    if not plugins and not skills and not mcps:
+    raw = result.get('all', [])
+    if not raw:
         print('')
         sys.exit(0)
 
-    def fmt_tool(t, GRAY='', RESET='', BLUE=''):
-        name = t.get('name', '')
-        url  = t.get('install_url', '') or ''
-        reason = (t.get('reason', '') or '').rstrip('.')
-        if len(reason) > 65:
-            reason = reason[:62] + '...'
-        OSC = chr(27) + ']8;;'
-        ST  = chr(27) + chr(92)
-        def link(display, href):
-            if href:
-                return f'{OSC}{href}{ST}{BLUE}{display}{RESET}{OSC}{ST}'
-            return f'{BLUE}{display}{RESET}'
-        if name.startswith('plugin:anthropic:'):
-            display = name[len('plugin:anthropic:'):]
-            linked = link(display, url)
-        elif name.startswith('plugin:cc-marketplace:'):
-            display = name[len('plugin:cc-marketplace:'):]
-            linked = link(display, url)
-        elif name.startswith('plugin:'):
-            display = name[7:]
-            linked = link(display, url)
-        elif name.startswith('mcp:'):
-            display = name[4:]
-            linked = link(display, url)
-        elif '@' in name:
-            owner_repo, skill_name = name.rsplit('@', 1)
-            gh_url = url or f'https://github.com/{owner_repo}'
-            linked = link(skill_name, gh_url)
-        else:
-            linked = link(name, url)
-        return f'  \u2022 {linked} \u2014 {reason}'
-
-    sections = []
     BLUE  = '\033[94m'
     GRAY  = '\033[90m'
     GREEN = '\033[92m'
     RESET = '\033[0m'
 
-    sections.append(f'{BLUE}[Dispatch] \u21b3 {task_type}:{RESET}')
+    def fmt_tool(t):
+        name   = t.get('name', '')
+        url    = t.get('install_url', '') or ''
+        reason = (t.get('reason') or t.get('description') or '').rstrip('.')
+        if len(reason) > 65:
+            reason = reason[:62] + '...'
+
+        OSC = '\033]8;;'
+        ST  = '\007'
+        if url:
+            linked = f'{OSC}{url}{ST}{BLUE}{name}{RESET}{OSC}{ST}'
+        else:
+            linked = f'{BLUE}{name}{RESET}'
+
+        tool_type = t.get('tool_type', '')
+        if 'plugin' in tool_type:
+            prefix = 'plugin:'
+        elif 'mcp' in tool_type:
+            prefix = 'mcp:'
+        else:
+            prefix = ''
+        display = name[len(prefix):] if name.startswith(prefix) else name
+
+        if url:
+            linked = f'{OSC}{url}{ST}{BLUE}{display}{RESET}{OSC}{ST}'
+        else:
+            linked = f'{BLUE}{display}{RESET}'
+
+        return f'  \u2022 {linked} \u2014 {GRAY}{reason}{RESET}'
+
+    # Group by tool_type for sectioned display
+    plugins = [t for t in raw if t.get('tool_type') == 'plugin'][:3]
+    mcps    = [t for t in raw if t.get('tool_type') == 'mcp'][:3]
+    skills  = [t for t in raw if t.get('tool_type') not in ('plugin', 'mcp')][:3]
+
+    sections = [f'{BLUE}[Dispatch] \u21b3 {task_type}:{RESET}']
 
     if plugins:
         sections.append('')
         sections.append(f'{BLUE}Plugins:{RESET}')
         for t in plugins:
-            sections.append(fmt_tool(t, GRAY, RESET, BLUE))
+            sections.append(fmt_tool(t))
 
     if skills:
         sections.append('')
         sections.append(f'{BLUE}Skills:{RESET}')
         for t in skills:
-            sections.append(fmt_tool(t, GRAY, RESET, BLUE))
+            sections.append(fmt_tool(t))
 
     if mcps:
         sections.append('')
         sections.append(f'{BLUE}MCPs:{RESET}')
         for t in mcps:
-            sections.append(fmt_tool(t, GRAY, RESET, BLUE))
+            sections.append(fmt_tool(t))
 
-    print('\n'.join(sections))
+    if plugins or skills or mcps:
+        print('\n'.join(sections))
+    else:
+        print('')
 
 except TimeoutError:
     print('')
