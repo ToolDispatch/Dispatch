@@ -260,6 +260,73 @@ You get a consolidated repair list for everything flagged during the refactor.
 
 Every scan writes `.xf/boundary_violations.json`. Every repair is logged to `.xf/repair_log.json` with timestamp and accepted/declined status. When something goes wrong in production, the log tells you whether XF Audit caught it.
 
+---
+
+## XFTC — Token Control (Module 3)
+
+XFTC runs three hooks alongside Dispatch and XF Audit. It controls token usage through three mechanisms: a persistent status line, behavioral nudges (Pro), and enforcement blocks (Pro).
+
+### What you'll see in your terminal
+
+**Status line** (all tiers — always on after install):
+```
+claude-sonnet-4-6 | ████░░░░░░ 42% | 420k of 1000k tokens
+```
+
+**Nudges and blocks** look like this (Pro):
+```
+◎ XFTC  2 MCP servers active (~36k tokens/message overhead)
+         Disconnect unused servers with /mcp to reduce baseline cost
+```
+
+**Ghost notification** (Free/BYOK — once per session):
+```
+◎ XFTC  Pro would have flagged an MCP overhead issue here — dispatch.visionairy.biz/pro
+```
+
+### What XFTC watches for
+
+| Check | When it fires | Tier |
+|---|---|---|
+| MCP overhead | Session start, if >2 servers active | Pro |
+| Sub-agent model | Every Agent call using Opus or Sonnet on lightweight task | Pro |
+| Verbose commands | Every Bash call matching verbose patterns | Pro |
+| 60% compact reminder | When context is estimated ~60% full | Pro |
+| Peak hour nudge | Session start on weekday 8am–2pm ET | Pro |
+| Cache timeout reminder | Session start after >5 min break with prior context | Pro (Mon only) |
+| CLAUDE.md length | Over 200 lines | Pro (Mon only) |
+| Version notification | New release available | All tiers (Mon only) |
+
+### Tier access
+
+| | Free | BYOK | Pro |
+|---|---|---|---|
+| Status line | ✓ | ✓ | ✓ |
+| Ghost notification | ✓ (once/session) | ✓ (once/session) | — |
+| All nudges | — | — | ✓ |
+| Enforcement blocks | — | — | ✓ |
+
+### When XFTC blocks
+
+When XFTC blocks a tool call (sub-agent Opus, verbose command), you have two options:
+
+1. **Say `proceed`** — Claude retries the tool call and XFTC passes it through for that one call
+2. **Change the approach** — switch to Haiku, or use the suggested alternative command
+
+### Troubleshooting XFTC
+
+**Status line not showing**
+Open a new terminal after install. If still missing, run `install.sh` again — it re-configures the status line without touching other settings.
+
+**XFTC is silent on Free/BYOK**
+Expected. You'll see one ghost notification per session when XFTC detects a trigger situation. All nudges and blocks require Pro.
+
+**XFTC is blocking too aggressively**
+The verbose command list and lightweight keyword list are configurable. Edit `~/.claude/xftc/checks/command_check.py` (VERBOSE_PATTERNS) and `~/.claude/xftc/checks/model_check.py` (LIGHTWEIGHT_KEYWORDS) to tune.
+
+**Upgrade to Pro to unlock full XFTC**
+`https://dispatch.visionairy.biz/pro?token=YOUR_TOKEN`
+
 ## Troubleshooting
 
 **Nothing is happening / Dispatch is silent**
