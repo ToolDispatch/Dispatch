@@ -16,7 +16,7 @@ def _iter_source_files(root: str) -> List[str]:
             ".git", ".worktrees", ".xf", ".venv", "venv", "__pycache__", "node_modules"
         }]
         for fn in filenames:
-            if fn.endswith(".py") or fn.endswith(".sh"):
+            if fn.endswith(".py") or fn.endswith(".sh") or fn.endswith(".ts") or fn.endswith(".tsx") or fn.endswith(".dart"):
                 out.append(os.path.join(dirpath, fn))
     return out
 
@@ -60,8 +60,9 @@ def build_index(root: str) -> Dict[str, Any]:
             continue
         symbol_tables.append(st)
         rel = os.path.relpath(path, root)
-        # Fix 2: use path-based key (rel without .py extension) instead of bare module_name
-        mod_key = rel[:-3] if rel.endswith(".py") else rel
+        # Fix 2: use path-based key (rel without extension) instead of bare module_name
+        _EXT_STRIP = (".py", ".ts", ".tsx", ".dart")
+        mod_key = next((rel[:-len(e)] for e in _EXT_STRIP if rel.endswith(e)), rel)
         modules[mod_key] = {
             "path": rel,
             "exports": sorted(set(st.exports)),
