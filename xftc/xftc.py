@@ -40,6 +40,36 @@ def run_submit_hook(data: dict) -> int:
         ),
     })
 
+    # Skills check — every session, all tiers
+    if not session.get("skills_warned"):
+        from xftc.checks.skills_check import check_skills
+        skills_result = check_skills()
+        if skills_result:
+            count = skills_result["count"]
+            total_kb = skills_result["total_kb"]
+            top = ", ".join(f"{n} ({kb}KB)" for n, kb in skills_result["top_heavy"][:3])
+            if is_pro:
+                print(
+                    f"{xftc_prefix()}  {count} skills installed ({total_kb}KB) — "
+                    f"every SKILL.md reloads on every message"
+                )
+                print(
+                    f"         Largest: {top}"
+                )
+                print(
+                    "         Run /dispatch prune-skills to review and remove unused ones"
+                )
+            else:
+                print(
+                    f"{xftc_prefix()}  {count} skills installed ({total_kb}KB) — "
+                    f"skills burn context on every message"
+                )
+                print(
+                    "         Review with: ls ~/.claude/skills/ — "
+                    "or upgrade for full token analysis: dispatch.visionairy.biz/pro"
+                )
+            update_session(session_id, {"skills_warned": True})
+
     # CLAUDE.md check — every session, all tiers (token hog, not Pro-exclusive)
     if not session.get("claude_md_warned"):
         from xftc.checks.claude_md_check import check_claude_md
