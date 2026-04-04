@@ -86,7 +86,7 @@ def run_submit_hook(data: dict) -> int:
                     "         Run /dispatch-compact-md to move reference sections "
                     "to ~/.claude/ref/ files Claude reads on demand"
                 )
-            elif not session.get("ghost_fired"):
+            else:
                 print(
                     f"{xftc_prefix()}  Your CLAUDE.md is {total} lines — "
                     f"every line burns context on every message"
@@ -95,7 +95,6 @@ def run_submit_hook(data: dict) -> int:
                     "         Run /dispatch-compact-md to compact it — "
                     "or upgrade for full token hog detection: dispatch.visionairy.biz/pro"
                 )
-                update_session(session_id, {"ghost_fired": True})
             update_session(session_id, {"claude_md_warned": True})
 
     if is_pro:

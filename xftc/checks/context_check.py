@@ -4,7 +4,7 @@ from typing import Optional
 COMPACT_THRESHOLD = 0.60
 
 # Calibration constants — proxy model until CC exposes token counts to hooks
-_MSG_FILL_PER_STEP = 0.004   # each message adds ~0.4% context fill
+_MSG_FILL_PER_STEP = 0.012   # each message adds ~1.2% context fill (~50 msgs → 60%)
 _LINE_FILL_PER_100 = 0.015   # 100 CLAUDE.md lines ≈ 1.5% fill
 
 
