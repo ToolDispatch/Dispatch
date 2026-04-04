@@ -40,6 +40,34 @@ def run_submit_hook(data: dict) -> int:
         ),
     })
 
+    # CLAUDE.md check — every session, all tiers (token hog, not Pro-exclusive)
+    if not session.get("claude_md_warned"):
+        from xftc.checks.claude_md_check import check_claude_md
+        result = check_claude_md(cwd)
+        if result:
+            p_lines, g_lines = result
+            total = p_lines + g_lines
+            if is_pro:
+                print(
+                    f"{xftc_prefix()}  Your CLAUDE.md is {total} lines — "
+                    f"every line reloads on every message"
+                )
+                print(
+                    "         Run /dispatch-compact-md to move reference sections "
+                    "to ~/.claude/ref/ files Claude reads on demand"
+                )
+            elif not session.get("ghost_fired"):
+                print(
+                    f"{xftc_prefix()}  Your CLAUDE.md is {total} lines — "
+                    f"every line burns context on every message"
+                )
+                print(
+                    "         Run /dispatch-compact-md to compact it — "
+                    "or upgrade for full token hog detection: dispatch.visionairy.biz/pro"
+                )
+                update_session(session_id, {"ghost_fired": True})
+            update_session(session_id, {"claude_md_warned": True})
+
     if is_pro:
         _run_pro_submit(session, session_id, project, dir_hash, cwd, message_count)
     elif not session.get("ghost_fired"):
@@ -76,7 +104,6 @@ def _run_pro_submit(session, session_id, project, dir_hash, cwd, message_count):
     from xftc.checks.mcp_check import check_mcp_overhead
     from xftc.checks.context_check import should_compact
     from xftc.checks.timing_check import is_peak_hours, check_cache_timeout
-    from xftc.checks.claude_md_check import check_claude_md
     from xftc.checks.version_check import check_version
 
     today = str(date.today())
@@ -108,16 +135,6 @@ def _run_pro_submit(session, session_id, project, dir_hash, cwd, message_count):
             print(f"{xftc_prefix()}  Context estimated ~{pct}% full \u2014 autocompact triggers at 95%,")
             print("         at which point quality degrades. Run /compact with preserve instructions.")
             update_session(session_id, {"compact_warned": True})
-
-    # CLAUDE.md check — Mondays only, weekly cap
-    if is_monday and project.get("last_claude_md_check") != today:
-        result = check_claude_md(cwd)
-        if result:
-            p_lines, g_lines = result
-            total = p_lines + g_lines
-            print(f"{xftc_prefix()}  Your CLAUDE.md is {total} lines \u2014 every line reloads on every message")
-            print("         Consider trimming to <200 lines and converting detail to indexed reference files")
-        update_project(dir_hash, {"last_claude_md_check": today})
 
     # Cache timeout — weekly cap, needs substantial prior context
     last_stop = _get_prev_stop(session_id)

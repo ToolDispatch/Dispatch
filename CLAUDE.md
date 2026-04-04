@@ -1,141 +1,49 @@
 # ToolDispatch — Claude Code Configuration
 
-**Platform:** ToolDispatch — Claude Code insurance policy (best tool + code that connects)
-**Module:** Dispatch — Runtime tool router | XF Audit — Contract checker (see `/home/visionairy/.claude/xf-boundary-auditor/`)
+**Stack:** Python 3.8+ · Bash · Claude Haiku (free) / Sonnet 4.6 (Pro)
 **Repo:** github.com/ToolDispatch/Dispatch
-**Stack:** Python 3.8+ · Bash · Claude Haiku API (free) / Sonnet 4.6 (Pro)
+**Server:** `/home/visionairy/Dispatch-API/app.py` — auto-deploys to Render on `git push`
 
 ---
 
-## Architecture
+## Hooks
 
-Three-hook pipeline:
+| Hook | Trigger | Does |
+|------|---------|------|
+| `dispatch.sh` | UserPromptSubmit | Haiku shift detection → writes state.json |
+| `dispatch-preuse.sh` | PreToolUse (Skill/Agent/mcp__*) | Scores + blocks on 10pt gap |
+| `dispatch-stop.sh` | Stop | One-line session digest |
+| `xftc-submit.sh` | UserPromptSubmit | Token hog nudges (MCP overhead, CLAUDE.md size, context) |
+| `xftc-preuse.sh` | PreToolUse (Agent/Bash) | Sub-agent model + verbose command checks |
 
-**Hook 1 — dispatch.sh** (UserPromptSubmit, fires on every message)
-- Stage 1: Haiku shift detection, ~100ms — returns `{shift, task_type, confidence}`
-- Stage 2 (on confirmed shift only): maps task_type → category via `category_mapper.py`
-  keyword match against `categories.json`; logs unknown categories to `unknown_categories.jsonl`;
-  writes `last_task_type`, `last_category`, `last_context_snippet`, `last_cwd` to `state.json`
-- No stdout output — completely silent
-- Increments `session_recommendations` counter when Stage 3 proactive fires
-
-**Hook 2 — preuse_hook.sh** (PreToolUse, fires before tool invocations)
-- Intercepts: `Skill`, `Agent`, `mcp__*` tool calls — passes through everything else
-- Reads task category from `state.json` (written by dispatch.sh)
-- Searches marketplace by category terms (more targeted than keyword split)
-- Scores tools on three components: `relevance * 0.5 + signal * 0.3 + velocity * 0.2`
-  - **Relevance** — LLM pass 0–100 vs task context; tools with no description pre-scored 0
-  - **Signal** — installs 60% + stars 25% + forks 15%, log-scaled
-  - **Velocity** — install momentum relative to repo age, log-scaled
-- Blocks (exit 2) if `max_weighted` across all groups ≥ cc_score + 10 points
-- Block output grouped by type: Skills / MCPs / Plugins, up to 3 per group (9 max)
-  - Each tool shows raw installs/stars/forks + component scores
-  - No-description tools flagged `⚠ no description — install at your own risk`
-  - Caveat appended on every block (community signals, not a security audit)
-- Writes bypass token so user's "proceed" passes through without re-block
-- Increments `session_audits` on every intercept; `session_blocks` on exit 2
-
-**Hook 3 — stop_hook.sh** (Stop, fires when session ends)
-- Reads `session_audits`, `session_blocks`, `session_recommendations` from `state.json`
-- Prints one-line digest: `[Dispatch] Session: N tool calls audited · N blocked · N recommendations shown`
-- Silent if Dispatch did nothing this session (audits=0, recommendations=0)
-- Always exits 0 — never blocks session close
-
-**Hosted mode (token in config.json):**
-- dispatch.sh: POSTs transcript to /classify — quota on confirmed shifts only
-- preuse_hook.sh: POSTs `{task_type, context_snippet, cc_tool, category_id}` to /rank
-- Fallback to BYOK ranking on non-200 from either endpoint
-- 402 / 401 cooldown handling preserved
-
-**Key modules:**
-- `classifier.py` — Haiku shift detection; emits `preferred_tool_type` hint
-- `evaluator.py` — `search_by_category()`, `rank_recommendations()`, `build_recommendation_list()`; filters installed MCPs via `stack_profile.mcp_servers`
-- `interceptor.py` — tool intercept logic, bypass token, state readers; `normalize_tool_name_for_matching()`, `get_cc_tool_type()`, `write_last_cc_tool_type()`, `get_last_cc_tool_type()`
-- `category_mapper.py` — `map_to_category()`, `log_unknown_category()`
-- `categories.json` — MECE 16-category catalog with `search_terms` AND `mcp_search_terms`
-- `stack_scanner.py` — detects languages/frameworks/tools/MCP servers from project files and `.mcp.json`
-- `llm_client.py` — LLM-agnostic adapter (OpenRouter-first, Anthropic fallback, noop)
-
----
-
-## Key Files
-
-| File | Purpose |
-|------|---------|
-| `classifier.py` | Haiku shift detection + task classification |
-| `evaluator.py` | Category search + Haiku ranking |
-| `interceptor.py` | PreToolUse tool parsing, bypass token, state readers |
-| `category_mapper.py` | Maps task_type → category_id; logs unknowns |
-| `categories.json` | MECE category catalog (16 categories) |
-| `dispatch.sh` | UserPromptSubmit hook — shift detection + state write |
-| `preuse_hook.sh` | PreToolUse blocking hook — intercepts and scores |
-| `stop_hook.sh` | Stop hook — session digest (audits · blocks · recommendations) |
-| `install.sh` | Copies files, registers all three hooks in settings.json |
-| `stack_scanner.py` | Detects languages, frameworks, tools, and MCP servers from project files |
-| `llm_client.py` | LLM-agnostic adapter (OpenRouter, Anthropic, noop) |
-| `test_classifier.py` | 23 unit tests for classifier |
-| `test_evaluator.py` | 56 unit tests for evaluator |
-| `test_interceptor.py` | 62 unit tests for interceptor |
-| `test_category_mapper.py` | 13 unit tests for category_mapper |
-| `test_llm_client.py` | 14 unit tests for llm_client |
-| `test_stack_scanner.py` | 20 unit tests for stack_scanner |
-
-**Installed location:** `~/.claude/dispatch/` (classifier.py, evaluator.py, interceptor.py, category_mapper.py, categories.json)
-**Hook 1:** `~/.claude/hooks/dispatch.sh` (UserPromptSubmit)
-**Hook 2:** `~/.claude/hooks/dispatch-preuse.sh` (PreToolUse)
+**Installed:** `~/.claude/hooks/` (hook scripts) · `~/.claude/dispatch/` (Python modules + state)
 **State:** `~/.claude/dispatch/state.json`
 
 ---
 
-## Critical Patterns
+## Key Modules
 
-**Haiku returns markdown-wrapped JSON** — Always strip code blocks before `json.loads()`:
-```python
-text = response.content[0].text.strip()
-if text.startswith("```"):
-    text = text.split("```")[1]
-    if text.startswith("json"):
-        text = text[4:]
-return json.loads(text.strip())
+| File | Purpose |
+|------|---------|
+| `classifier.py` | Haiku shift detection, emits task_type + preferred_tool_type |
+| `evaluator.py` | `search_by_category()`, `rank_recommendations()`, `build_recommendation_list()` |
+| `interceptor.py` | PreToolUse parsing, bypass token, state readers |
+| `category_mapper.py` | Maps task_type → MECE category_id; logs unknowns |
+| `categories.json` | 16-category catalog with `search_terms` + `mcp_search_terms` |
+| `stack_scanner.py` | Detects languages/frameworks/MCPs from project files + .mcp.json |
+| `llm_client.py` | OpenRouter-first, Anthropic fallback, noop |
+
+---
+
+## Install / Sync
+
+```bash
+cp classifier.py evaluator.py interceptor.py category_mapper.py categories.json \
+   llm_client.py stack_scanner.py ~/.claude/dispatch/
+cp dispatch.sh ~/.claude/hooks/dispatch.sh
+cp preuse_hook.sh ~/.claude/hooks/dispatch-preuse.sh
+cp stop_hook.sh ~/.claude/hooks/dispatch-stop.sh
 ```
-
-**Hook timeout is 10 seconds total** — Budget carefully:
-- dispatch.sh Stage 1 (Haiku): ~500ms
-- preuse_hook.sh Stage 2 (registry + Haiku): ~3-5s
-- npx timeout set to 6s, not 20s
-
-**Compound task types** — Classifier may return `docker-aws-github-actions`. `search_by_category()` uses all category search_terms (up to 5), deduplicated. Primary term used for state tracking.
-
-**Broad exception catches are intentional** — Hook must never block Claude. Every function returns a safe default on failure.
-
-**Task type is open-ended** — Haiku generates descriptive labels like `react-native`, `langchain`, `github-actions`. Not a fixed list. `category_mapper.py` maps these to one of 16 MECE categories by keyword match.
-
-**TASK_TYPE passed as argv, not interpolated** — Prevents shell injection. Always use `sys.argv[n]` in inline Python, never `'$TASK_TYPE'`.
-
-**`head -n -1` is GNU-only** — BSD head on macOS interprets it as "print 1 line". Use `sed '$d'` (delete last line) for portable HTTP body extraction.
-
-**Bypass token TTL is 120s** — Written by preuse_hook.sh before exit 2, consumed on the very next Skill/Agent/mcp__ call. Clears itself after use.
-
-**Installed path is `~/.claude/dispatch/`** — Python modules, state.json, config.json, unknown_categories.jsonl all live here. Old `~/.claude/skill-router/` is deleted.
-
-**`mcp_search_terms` used for glama vocabulary** — Glama.ai MCP searches use service names (postgres, github) not task names (database-management). `categories.json` has both `search_terms` (for skills.sh) and `mcp_search_terms` (for glama).
-
-**`plugin:anthropic:` prefix required for type detection** — Official plugins prefixed `plugin:anthropic:name`; community plugins `plugin:cc-marketplace:name`; MCPs `mcp:slug`. Bare names are skills.
-
-**`state.json` fields:**
-- `last_task_type` — Haiku-generated task label (e.g., "flutter-building")
-- `last_category` — MECE category_id (e.g., "mobile-development")
-- `last_context_snippet` — last 3 user messages joined for preuse ranker
-- `last_cwd` — project dir at time of last shift
-- `last_suggested` — tool name Dispatch last recommended (for conversion tracking)
-- `last_cc_tool_type` — "mcp" | "skill" | "agent" from most recent PreToolUse intercept
-- `bypass` — `{tool_name, expires}` one-time bypass token (TTL 120s)
-- `session_id` — CC session identifier; counter reset trigger when it changes
-- `session_audits` — count of PreToolUse intercepts this session
-- `session_blocks` — count of exit-2 blocks this session
-- `session_recommendations` — count of Stage 3 proactive outputs this session
-- `first_run` — bool, cleared after first-session welcome message
-- `limit_cooldown` / `auth_invalid_cooldown` — suppression counters for 402/401 notices
 
 ---
 
@@ -143,145 +51,84 @@ return json.loads(text.strip())
 
 ```bash
 cd /home/visionairy/Dispatch
-python3 -m pytest test_classifier.py test_evaluator.py test_interceptor.py test_category_mapper.py test_llm_client.py test_stack_scanner.py -v
+python3 -m pytest test_classifier.py test_evaluator.py test_interceptor.py \
+  test_category_mapper.py test_llm_client.py test_stack_scanner.py -v
 ```
 
-All 188 tests must pass before pushing (23 classifier + 56 evaluator + 62 interceptor + 13 category_mapper + 14 llm_client + 20 stack_scanner).
-
-**Live test:** Requires a new CC session. Cannot simulate UserPromptSubmit or PreToolUse from inside a session.
-
-**Manual classifier test:**
-```bash
-ANTHROPIC_API_KEY=sk-ant-... python3 classifier.py \
-  --transcript /path/to/transcript.jsonl \
-  --cwd /your/project \
-  --last-task-type firebase
-```
+263 client tests must pass before pushing. Live test requires a new CC session.
 
 ---
 
-## Install / Sync
+## CC Transcript Format (Critical)
 
-After editing source files, sync to installed location:
-```bash
-cp classifier.py evaluator.py interceptor.py category_mapper.py categories.json ~/.claude/dispatch/
-cp dispatch.sh ~/.claude/hooks/dispatch.sh
-cp preuse_hook.sh ~/.claude/hooks/dispatch-preuse.sh
-```
+Entries: `{"type":"user", "isMeta":bool, "message":{"role":"user","content":"..."}, ...}`
 
-install.sh handles this automatically for fresh installs.
+- `role` is nested inside `message` — `entry.get("role")` always returns `None`
+- `isMeta=True` = CC system messages — exclude
+- Content starting with `[{` = serialized tool result — exclude
 
----
-
-## CC Transcript Format — Critical
-
-CC transcript JSONL entries are `{"type":"user", "isMeta":bool, "message":{"role":"user","content":"..."}, ...}`.
-
-- `role` is nested inside `message`, NOT at top level — `entry.get("role")` always returns `None`
-- `isMeta=True` entries are CC system messages (loaded skill file text, tool responses) — exclude them
-- String content starting with `[{` is a serialized tool result — exclude it
-- `userType` is always `"external"` — cannot distinguish real user messages from tool results this way
-
-`extract_recent_messages` handles all three cases. Do not revert these filters.
-
-## Known Issues / History
-
-- **2026-03-30:** Scoring overhaul — grouped output (Skills/MCPs/Plugins, max 3 per type), three-component scoring (Relevance·Signal·Velocity), `max_weighted` block threshold, no-description flag + pre-score-0, caveat on every block. Npm contamination: 369 npm packages (`@langchain/core`, `react`, `vue`, `@react-native/*`) deleted from live DB; `crawl_all_skills` now rejects `source` starting with `@` or lacking `/`; `db.py get_catalog_tools` adds `npm_filter` defence-in-depth. SKILL.md enrichment: `_fetch_skill_description` tries `skills/{skill_name}/SKILL.md` → `{skill_name}/SKILL.md` → `README.md` — ~90% of real skills will pick up descriptions on next cron run. Velocity column migration runs at cron start (first run populates `velocity_score` + `repo_created_at`).
-- **2026-03-29:** Root cause of "only Superpowers": category_mapper returned None for dispatch-*/general-* task types → category="" → /rank skipped catalog → fell back to live skills.sh → Superpowers every time. Fixed: `_GENERIC_PREFIX_FALLBACK` dict + `_LOW_PRIORITY` set in category_mapper.py. FREE_RANKER_MODEL changed Nemotron 120B (28s, blew 10s timeout) → Mistral Nemo (~1s). `_fetch_skill_description` + 5s hard timeout in evaluator.py.
-- **2026-03-15:** v0.8.x MCP/plugin redesign — glama.ai MCP search with mcp_search_terms, official plugins (plugin:anthropic: prefix), community plugins (plugin:cc-marketplace: prefix), type-aware catalog UNION query, normalize_tool_name_for_matching for conversion tracking, stack_scanner detects .mcp.json MCP servers, mcp_servers filtering in both evaluators, catalog_by_id prefixed+unprefixed key lookup, get_weakness_map_by_type in db.py, classifier emits preferred_tool_type, write_last_cc_tool_type in interceptor.py, extract_cc_tool hardened for non-dict input. BUG-FIXED: dispatch.sh and preuse_hook.sh were writing/reading state.json to different directories (~/.claude/skill-router vs ~/.claude/dispatch). Fixed by syncing installed hook. ~/.claude/skill-router/ deleted.
-- **2026-03-14:** v0.7.0 — PreToolUse interception added. dispatch.sh now silent (Stage 1 + state write only). preuse_hook.sh intercepts Skill/Agent/mcp__* calls, scores marketplace alternatives vs CC's chosen tool, blocks on 10+ point gap. Category-first model: task_type maps to MECE category for targeted search. Unknown categories logged to unknown_categories.jsonl.
-- **2026-03-05:** Haiku markdown wrapping bug — fixed in classifier.py and evaluator.py
-- **2026-03-05:** Compound task types broke registry search — fixed with primary term split
-- **2026-03-05:** Shell injection via TASK_TYPE — fixed with argv passing
-- **2026-03-05:** Open-ended taxonomy — removed fixed task type list, Haiku now generates labels freely
-- **2026-03-05:** Hook UI invisible (stdout vs stderr) — all UI output to stderr
-- **2026-03-05:** 402 fired on every message when limit hit — server now only charges on confirmed shifts
-- **2026-03-05:** Unbound $TASK_TYPE crashed hook after 402 display — fixed with ${LAST_TASK_TYPE:-}
-- **2026-03-05:** Server evaluator used npx (unavailable on Render) — replaced with skills.sh HTTP API
-- **2026-03-05:** Hosted /rank never sent client installed plugins — fixed in Stage 2 payload
-- **2026-03-05:** 3s wait fired even with "no skills found" — gated on HAS_RECS check
-- **2026-03-05:** Tmpfile leak on unexpected exit — trap EXIT added
-- **2026-03-05:** Invalid token gave no indication — 401 handler with auth_invalid_cooldown
-- **2026-03-05:** Marketplace name missing from installed plugin display — extracted from path, shown as "(via marketplace)"
-- **2026-03-05:** /rank failure silently returned empty — fallback to BYOK local ranking added
-- **2026-03-05:** settings.json malformed JSON crashed install — wrapped in try/except
-- **2026-03-05:** `head -n -1` (GNU-only) broke HTTP parsing on macOS — replaced with `sed '$d'`
-- **2026-03-05:** `pip3 install` in install.sh could fail without sudo — changed to `python3 -m pip install --user`
-- **2026-03-05:** Token string-interpolated into Python source in install.sh — changed to sys.argv
-- **2026-03-05:** /rank endpoint missing rate limit — matched to /classify (30/min)
-- **2026-03-05:** DB error in check_and_increment returned (False,0,0) → false 402 — returns (None,0,0) → 500
-- **2026-03-05:** Concurrent OAuth completions caused UniqueViolation — replaced SELECT+INSERT with upsert
-- **2026-03-05:** admin set-plan silently succeeded on unknown username — now returns 404
-- **2026-03-05:** Flask session cookies lacked Secure/SameSite flags — SESSION_COOKIE_SECURE/HTTPONLY/SAMESITE=Lax
-- **2026-03-05:** gunicorn single sync worker — switched to gthread 2 workers × 4 threads (Procfile)
-- **2026-03-05:** `extract_recent_messages` read `entry['role']` — CC nests role at `entry['message']['role']` — Dispatch never fired (BUG-022) — fixed client + server, deployed
-- **2026-03-05:** `extract_recent_messages` included isMeta entries (skill text) and `[{` strings (tool results) as user messages — polluted Haiku context (BUG-023) — filtered out
+`extract_recent_messages` handles all three. Do not revert these filters.
 
 ---
 
 ## Documentation Update Protocol
 
-**MANDATORY:** After any change that affects user-facing behavior, install steps, API contracts, or pricing — update ALL applicable docs before committing.
+After any change affecting user-facing behavior, install steps, API contracts, or pricing:
 
-### Doc map — what to update for each change type
-
-| Change type | Update these docs |
-|-------------|------------------|
-| New feature / behavior change | README (What it does, Using it), user-guide.md, SKILL.md (if skill changes) |
-| Install process change | README (Install section), user-guide.md (Getting started), install.sh comments |
-| Pricing / plan change | README (Three ways to run it, comparison table), user-guide.md (Plans at a glance), app.py (Pro page, dashboard upsell text) |
-| New API endpoint or response field | admin-guide.md (if admin-facing), CLAUDE.md (Architecture, Key Files) |
-| Dashboard change | admin-guide.md, user-guide.md (Your account section) |
-| Hook behavior change | README (What it actually does, How the scoring works), user-guide.md (What happens during a session, When Dispatch intercepts), CLAUDE.md (Architecture) |
-| New env var (server) | admin-guide.md (Required Environment Variables table) |
-| Troubleshooting edge case discovered | README (Troubleshooting), user-guide.md (Troubleshooting) |
-| Roadmap item completed | README (Roadmap checkboxes), CLAUDE.md (Roadmap checkboxes) |
-| Privacy / data change | README (Privacy table), user-guide.md (Privacy section) |
-
-### Docs inventory
-
-| File | Audience | Location |
-|------|----------|----------|
-| `README.md` | Public — GitHub landing page | repo root |
-| `docs/user-guide.md` | Users — getting started + troubleshooting | Dispatch repo |
-| `docs/admin-guide.md` | Russ only — operator reference | Dispatch repo |
-| `SKILL.md` | skills.sh + CC marketplace discovery | repo root |
-| `.claude-plugin/plugin.json` | CC marketplace manifest | repo root |
-| `CLAUDE.md` (this file) | Claude Code sessions — architecture + patterns | repo root |
-
-### Checklist (run before every commit that touches behavior)
-
-- [ ] Does this change affect what users see or do? → Update README + user-guide.md
-- [ ] Does this change the install process? → Update README + user-guide.md getting started
-- [ ] Does this change admin surfaces or env vars? → Update admin-guide.md
-- [ ] Does this change hook behavior? → Update README + user-guide.md + CLAUDE.md architecture
-- [ ] Does this complete a roadmap item? → Check off in README and CLAUDE.md
-- [ ] Does this change pricing? → Update README table + user-guide.md table + app.py upsell copy
+| Change type | Update |
+|-------------|--------|
+| New feature / behavior | README, user-guide.md, SKILL.md |
+| Install change | README, user-guide.md getting started |
+| Pricing change | README table, user-guide.md, app.py upsell |
+| Hook behavior change | README, user-guide.md, CLAUDE.md |
+| New server env var | admin-guide.md |
+| Roadmap item done | README checkboxes, CLAUDE.md roadmap |
 
 ---
 
 ## Roadmap
 
-- [x] Hosted endpoint — live at dispatch.visionairy.biz, $10/month Pro
-- [x] Caching layer for plugin registry (npx_cache.json, 1hr TTL)
-- [x] Collective 0–100 ranked list with TOP PICK + install info (v0.4.0)
-- [x] Rich descriptions fed to ranker — grounded reasons (v0.5.0)
-- [x] Multi-term compound task type search (v0.5.0)
-- [x] MCP server scanning from .mcp.json (v0.5.0)
-- [x] Score gap truncation — 25-point cliff (v0.5.0)
-- [x] Sonnet for Pro tier ranking (v0.5.0)
-- [x] PreToolUse interception — blocks on 10+ point gap (v0.7.0)
-- [x] Category-first model — MECE 16-category catalog (v0.7.0)
-- [x] Daily catalog cron — signal-scored, creator outreach (v0.8.0 / v0.9.0)
-- [x] Install conversion tracking — was_installed events (v0.9.1)
-- [x] Creator outreach — GitHub issues for undescribed skills (v0.9.1)
-- [x] Slack notifications — signup, upgrade, conversion, cron (v0.9.1)
-- [x] Admin dashboard — CC Weakness Map, MRR, user table (v0.9.1)
-- [x] User dashboard — Pro-gated stats, install badges, upsell (v0.9.1)
-- [x] `/dispatch status` command (v0.9.1)
-- [ ] Weekly category scoring cron — zero live API calls at hook time
-- [ ] End-to-end live session testing + screen recording for promotion
+- [x] Three-hook pipeline (UserPromptSubmit + PreToolUse + Stop)
+- [x] Category-first MECE model (16 categories)
+- [x] Three-component scoring (Relevance · Signal · Velocity)
+- [x] MCP + Plugin support (glama, Anthropic official, community)
+- [x] Hosted endpoint — dispatch.visionairy.biz, $10/month Pro
+- [x] Daily catalog cron (16,500+ tools)
+- [x] Admin + User dashboards, Stripe, Slack notifications
+- [x] XFTC — Module 3 (session-based token hog nudges)
+- [ ] Weekly category scoring cron (zero live API at hook time)
 - [ ] skills.sh distribution (`npx skills add VisionAIrySE/Dispatch`)
-- [ ] CC marketplace submission (platform.claude.com/plugins/submit)
-- [ ] Weekly new-tool digest email for Pro users
-- [ ] Aggregate insights API (category trends, CC gap analysis)
+- [ ] CC marketplace submission
+- [ ] End-to-end live session test + recording
+
+---
+
+## Architectural Principles
+
+**XSIA builds on XFBA. Always. No exceptions.**
+
+XFBA is Stage 1 — catches contract violations (wrong type, broken import, bad arity). XSIA is Stage 5 — analyzes systemic impact (what else breaks when this change lands). If XFBA finds a violation, XSIA still runs but is marked "fix XFBA first." You cannot meaningfully analyze cascade impact on broken code. XFBA is the gate, XSIA is the consequence map.
+
+Applies to new checkers too: any JSON/YAML/config schema checker belongs in XFBA. Any cascade or field-kill-field analysis belongs in XSIA. Build XFBA first, XSIA second.
+
+---
+
+## Architectural Principle Protocol
+
+When a definition, dependency rule, or design invariant is discovered that would prevent a recurring class of mistake or guide future development — commit it to this file immediately, not just to memory.
+
+**Triggers:** a question gets answered that shouldn't need answering again ("which builds on the other?"), a bug is traced to a missing rule ("XFBA doesn't cover JSON"), or a pattern is validated in production.
+
+**Format:** one heading, one clear statement of the rule, one sentence on why, one sentence on how to apply it. No multi-paragraph essays — if it needs more, it goes in `~/.claude/ref/`.
+
+---
+
+## Reference Files (load on demand)
+
+See `~/.claude/ref/dispatch-patterns.md` for:
+- Haiku markdown-wrapped JSON stripping pattern
+- Hook timeout budget (10s total)
+- Bypass token behavior (120s TTL)
+- state.json field reference
+- Scoring formula + tool name prefix system
+- Known issue history

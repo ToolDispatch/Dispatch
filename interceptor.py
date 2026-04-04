@@ -276,6 +276,31 @@ def get_last_cc_tool_type(state_file: str = None) -> str:
         return ""
 
 
+def write_last_recommended_category(category_id: str, state_file: str = None) -> None:
+    """Persist the category last recommended by Stage 3 to state.json."""
+    path = state_file or STATE_FILE
+    try:
+        try:
+            with open(path) as f:
+                state = json.load(f)
+        except Exception:
+            state = {}
+        state["last_recommended_category"] = category_id
+        _atomic_write(path, state)
+    except Exception:
+        pass
+
+
+def get_last_recommended_category(state_file: str = None) -> str:
+    """Return the category last recommended by Stage 3, or '' if unset."""
+    path = state_file or STATE_FILE
+    try:
+        with open(path) as f:
+            return json.load(f).get("last_recommended_category", "")
+    except Exception:
+        return ""
+
+
 def get_fired_categories(state_file: str = None) -> set:
     """Return set of categories already recommended this session (never re-fire same category)."""
     path = state_file or STATE_FILE

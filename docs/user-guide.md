@@ -264,7 +264,7 @@ Every scan writes `.xf/boundary_violations.json`. Every repair is logged to `.xf
 
 ## XFTC — Token Control (Module 3)
 
-XFTC runs three hooks alongside Dispatch and XF Audit. It controls token usage through three mechanisms: a persistent status line, behavioral nudges (Pro), and enforcement blocks (Pro).
+XFTC runs three hooks alongside Dispatch and XF Audit. It controls token usage through a persistent status line, behavioral nudges, and enforcement blocks.
 
 ### What you'll see in your terminal
 
@@ -279,22 +279,23 @@ claude-sonnet-4-6 | ████░░░░░░ 42% | 420k of 1000k tokens
          Disconnect unused servers with /mcp to reduce baseline cost
 ```
 
-**Ghost notification** (Free/BYOK — once per session):
+**Ghost notification** (Free/BYOK — once per session, when a trigger is detected):
 ```
-◎ XFTC  Pro would have flagged an MCP overhead issue here — dispatch.visionairy.biz/pro
+◎ XFTC  Your CLAUDE.md is 287 lines — every line burns context on every message
+         Run /dispatch-compact-md to compact it — or upgrade for full token hog detection: dispatch.visionairy.biz/pro
 ```
 
 ### What XFTC watches for
 
 | Check | When it fires | Tier |
 |---|---|---|
+| CLAUDE.md length | Session start, if project or global CLAUDE.md >200 lines | All tiers |
 | MCP overhead | Session start, if >2 servers active | Pro |
 | Sub-agent model | Every Agent call using Opus or Sonnet on lightweight task | Pro |
 | Verbose commands | Every Bash call matching verbose patterns | Pro |
 | 60% compact reminder | When context is estimated ~60% full | Pro |
 | Peak hour nudge | Session start on weekday 8am–2pm ET | Pro |
 | Cache timeout reminder | Session start after >5 min break with prior context | Pro (Mon only) |
-| CLAUDE.md length | Over 200 lines | Pro (Mon only) |
 | Version notification | New release available | All tiers (Mon only) |
 
 ### Tier access
@@ -319,13 +320,42 @@ When XFTC blocks a tool call (sub-agent Opus, verbose command), you have two opt
 Open a new terminal after install. If still missing, run `install.sh` again — it re-configures the status line without touching other settings.
 
 **XFTC is silent on Free/BYOK**
-Expected. You'll see one ghost notification per session when XFTC detects a trigger situation. All nudges and blocks require Pro.
+Not entirely — CLAUDE.md length check fires for all tiers every session. You'll also see one ghost notification per session when XFTC detects an MCP overhead, peak hours, or context usage trigger. Full nudges and enforcement blocks require Pro.
 
 **XFTC is blocking too aggressively**
 The verbose command list and lightweight keyword list are configurable. Edit `~/.claude/xftc/checks/command_check.py` (VERBOSE_PATTERNS) and `~/.claude/xftc/checks/model_check.py` (LIGHTWEIGHT_KEYWORDS) to tune.
 
 **Upgrade to Pro to unlock full XFTC**
 `https://dispatch.visionairy.biz/pro?token=YOUR_TOKEN`
+
+### Skills installed with Dispatch
+
+Two slash commands are installed automatically:
+
+**`/dispatch-status`** — show hook state, last task detected, category, quota, and bypass token status.
+
+**`/dispatch-compact-md`** — compact oversized CLAUDE.md files. When XFTC flags your CLAUDE.md as too large, run this command. Claude will:
+1. Find all CLAUDE.md files over 200 lines
+2. Identify reference-only sections (code examples, tables, changelogs)
+3. Show you a compact plan with before/after line counts
+4. Wait for confirmation, then move those sections to `~/.claude/ref/` files
+5. Replace each moved section with a one-line pointer
+
+```
+CLAUDE.md compact plan: /home/user/MyProject/CLAUDE.md
+Current: 287 lines → Target: ~90 lines
+
+Sections to move to ~/.claude/ref/:
+  → ref/playwright-testing.md  — E2E Testing Patterns (~80 lines)
+  → ref/edit-verification.md   — Edit Verification Steps (~60 lines)
+
+Sections staying in CLAUDE.md:
+  ✓ Honesty Protocol
+  ✓ Mandatory Protocols (rule summaries only)
+  ✓ Tools table
+
+Proceed?
+```
 
 ## Troubleshooting
 

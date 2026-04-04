@@ -211,6 +211,10 @@ The catalog is the compounding advantage. The hosted version sees what thousands
 | **Dispatch — catalog** | Live search | Live search | Pre-ranked, 6 sources |
 | **XFBA (Boundary Auditor)** | — | ✓ (within 5 turns) | ✓ Unlimited |
 | **XSIA (Impact Analyzer)** | — | ✓ (within 5 turns) | ✓ Unlimited |
+| **XFTC — CLAUDE.md check** | ✓ | ✓ | ✓ |
+| **XFTC — nudges (MCP, context, model)** | — | Ghost (1/session) | ✓ Unlimited |
+| **XFTC — enforcement blocks** | — | — | ✓ |
+| **`/dispatch-compact-md` skill** | ✓ | ✓ | ✓ |
 | **Dashboard** | — | — | ✓ |
 | **Network intelligence** | — | — | ✓ |
 | **Cost** | API costs | Free | $10/month |

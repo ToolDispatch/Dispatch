@@ -159,10 +159,14 @@ cp xftc-preuse.sh "$HOOKS_DIR/xftc-preuse.sh"
 cp xftc-stop.sh  "$HOOKS_DIR/xftc-stop.sh"
 chmod +x "$HOOKS_DIR/xftc-submit.sh" "$HOOKS_DIR/xftc-preuse.sh" "$HOOKS_DIR/xftc-stop.sh"
 
-# ── Install /dispatch status skill ────────────────────────────────────────
+# ── Install skills ─────────────────────────────────────────────────────────
 SKILLS_DIR="$HOME/.claude/skills/dispatch-status"
 mkdir -p "$SKILLS_DIR"
 cp skills/dispatch-status/SKILL.md "$SKILLS_DIR/SKILL.md"
+
+COMPACT_SKILLS_DIR="$HOME/.claude/skills/dispatch-compact-md"
+mkdir -p "$COMPACT_SKILLS_DIR"
+cp skills/dispatch-compact-md/SKILL.md "$COMPACT_SKILLS_DIR/SKILL.md"
 
 # ── Register hook in settings.json ────────────────────────────────────────
 if [ ! -f "$SETTINGS" ]; then

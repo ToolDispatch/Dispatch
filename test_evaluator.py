@@ -734,8 +734,9 @@ class TestRecommendTools(unittest.TestCase):
                 {"name": "tool-b", "score": 75, "reason": "Good."},
             ]
         })
+        _dummy = [{"id": "tool-a", "description": "test tool"}]
         with patch("evaluator.get_client", return_value=mock_client), \
-             patch("evaluator.search_by_category", return_value=[]):
+             patch("evaluator.search_by_category", return_value=_dummy):
             result = recommend_tools("flutter-building", category_id="mobile")
         assert result["top_pick"]["name"] == "tool-a"
 
@@ -750,8 +751,9 @@ class TestRecommendTools(unittest.TestCase):
                 {"name": "mcp:tool-mcp", "score": 77, "reason": "MCP."},
             ]
         })
+        _dummy = [{"id": "tool-skill", "description": "test tool"}]
         with patch("evaluator.get_client", return_value=mock_client), \
-             patch("evaluator.search_by_category", return_value=[]):
+             patch("evaluator.search_by_category", return_value=_dummy):
             result = recommend_tools("flutter-building", category_id="mobile", preferred_type="mcp")
         names = [t["name"] for t in result["all"]]
         mcp_idx = names.index("mcp:tool-mcp")
@@ -793,8 +795,9 @@ class TestRecommendTools(unittest.TestCase):
                 {"name": "plugin:anthropic:p-a", "score": 70, "reason": "D."},
             ]
         })
+        _dummy = [{"id": "skill-a", "description": "test tool"}]
         with patch("evaluator.get_client", return_value=mock_client), \
-             patch("evaluator.search_by_category", return_value=[]):
+             patch("evaluator.search_by_category", return_value=_dummy):
             result = recommend_tools("flutter-building", category_id="mobile")
         # Verify by_type key exists and is a dict with three sections
         assert "by_type" in result
