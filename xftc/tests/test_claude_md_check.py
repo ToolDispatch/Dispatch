@@ -26,9 +26,11 @@ class TestClaudeMdCheck:
         project_lines, global_lines = count_claude_md_lines(str(tmp_path))
         assert project_lines == 150
 
-    def test_exactly_200_lines_returns_none(self, tmp_path):
+    def test_exactly_200_lines_returns_none(self, tmp_path, monkeypatch):
         from xftc.checks.claude_md_check import check_claude_md
         (tmp_path / "CLAUDE.md").write_text("line\n" * 200)
+        # Patch global CLAUDE.md to empty so only project lines count
+        monkeypatch.setenv("HOME", str(tmp_path))
         assert check_claude_md(str(tmp_path)) is None
 
     def test_201_lines_returns_result(self, tmp_path):

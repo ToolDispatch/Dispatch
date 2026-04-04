@@ -180,10 +180,16 @@ def _run_pro_submit(session, session_id, project, dir_hash, cwd, message_count):
         result = check_memory_audit(cwd)
         if result:
             count = result["count"]
-            noun = "link" if count == 1 else "links"
+            bloated = result.get("bloated", False)
+            line_count = result.get("line_count", 0)
+            issues = []
+            if count:
+                noun = "link" if count == 1 else "links"
+                issues.append(f"{count} broken {noun}")
+            if bloated:
+                issues.append(f"{line_count} lines — over 180-line limit")
             print(
-                f"{xftc_prefix()}  MEMORY.md has {count} broken {noun} "
-                f"— referenced files that no longer exist"
+                f"{xftc_prefix()}  MEMORY.md: {', '.join(issues)}"
             )
             print(
                 "         Say '/warm-start' to audit and fix (creates .bak backup first)"

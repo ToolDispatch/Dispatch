@@ -2,6 +2,8 @@ import os
 import re
 from typing import Optional
 
+MEMORY_LINE_LIMIT = 180  # warn when MEMORY.md exceeds this many lines
+
 
 def _memory_dir(cwd: str) -> str:
     """Return the Claude auto-memory directory for the given working directory."""
@@ -43,7 +45,10 @@ def check_memory_audit(cwd: str) -> Optional[dict]:
         if not os.path.isfile(full_path):
             broken.append({"title": title, "path": path})
 
-    if not broken:
+    line_count = content.count("\n") + 1
+    bloated = line_count > MEMORY_LINE_LIMIT
+
+    if not broken and not bloated:
         return None
 
     return {
@@ -51,6 +56,8 @@ def check_memory_audit(cwd: str) -> Optional[dict]:
         "memory_dir": memory_dir,
         "broken": broken,
         "count": len(broken),
+        "line_count": line_count,
+        "bloated": bloated,
     }
 
 

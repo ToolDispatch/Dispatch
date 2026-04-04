@@ -127,6 +127,44 @@ def test_external_links_not_flagged_alongside_broken(tmp_path, monkeypatch):
     assert result['broken'][0]['path'] == 'gone.md'
 
 
+# ── line count / bloat checks ─────────────────────────────────────────────────
+
+def test_returns_none_when_under_limit(tmp_path, monkeypatch):
+    _patch_home(monkeypatch, tmp_path)
+    content = '\n'.join([f'- line {i}' for i in range(50)])
+    cwd, _ = _make_memory(tmp_path, 'proj', content)
+    result = check_memory_audit(cwd)
+    assert result is None
+
+
+def test_flags_bloat_when_over_limit(tmp_path, monkeypatch):
+    _patch_home(monkeypatch, tmp_path)
+    content = '\n'.join([f'- line {i}' for i in range(200)])
+    cwd, _ = _make_memory(tmp_path, 'proj', content)
+    result = check_memory_audit(cwd)
+    assert result is not None
+    assert result['bloated'] is True
+    assert result['line_count'] > 180
+
+
+def test_bloat_result_has_no_broken_links(tmp_path, monkeypatch):
+    _patch_home(monkeypatch, tmp_path)
+    content = '\n'.join([f'- line {i}' for i in range(200)])
+    cwd, _ = _make_memory(tmp_path, 'proj', content)
+    result = check_memory_audit(cwd)
+    assert result['count'] == 0
+    assert result['broken'] == []
+
+
+def test_broken_link_below_limit_still_reported(tmp_path, monkeypatch):
+    _patch_home(monkeypatch, tmp_path)
+    cwd, _ = _make_memory(tmp_path, 'proj', '- [Missing](gone.md)\n')
+    result = check_memory_audit(cwd)
+    assert result is not None
+    assert result['bloated'] is False
+    assert result['count'] == 1
+
+
 def test_returns_none_when_all_links_present(tmp_path, monkeypatch):
     _patch_home(monkeypatch, tmp_path)
     content = '- [One](one.md)\n- [Two](two.md)\n'
